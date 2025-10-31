@@ -1,0 +1,3 @@
+[[run]]
+name = "Start Vite"
+cmd = "npm run dev"

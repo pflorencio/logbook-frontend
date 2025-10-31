@@ -1,0 +1,15 @@
+entrypoint = "index.js"
+modules = ["nodejs-20"]
+
+[env]
+PORT = "3000"
+
+run = "npm run dev"
+
+[nix]
+channel = "stable-24_05"
+
+[[ports]]
+localPort = 3000
+externalPort = 443
+exposeLocalhost = true
