@@ -1,11 +1,15 @@
+// src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import OpsDashboard from "./pages/OpsDashboard";
+import Dashboard from "./pages/Dashboard";
+import Login from "./pages/Login";
+import CashierForm from "./pages/CashierForm"; // ✅ add this import
 
 export default function App() {
   return (
     <Router>
       <div className="min-h-screen flex flex-col items-center justify-center text-center p-6">
         <Routes>
+          {/* Homepage */}
           <Route
             path="/"
             element={
@@ -16,16 +20,32 @@ export default function App() {
                 <p className="text-gray-600 mb-6">
                   Welcome to the control panel. Choose a section below.
                 </p>
-                <Link
-                  to="/ops"
-                  className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  Go to Dashboard
-                </Link>
+                <div className="flex gap-4 justify-center">
+                  <Link
+                    to="/dashboard"
+                    className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    Go to Dashboard
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    Store Login
+                  </Link>
+                </div>
               </div>
             }
           />
-          <Route path="/ops" element={<OpsDashboard />} />
+
+          {/* Dashboard (Manager View) */}
+          <Route path="/dashboard" element={<Dashboard />} />
+
+          {/* Store Login */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Cashier Form (Store View) */}
+          <Route path="/cashier" element={<CashierForm />} />
         </Routes>
       </div>
     </Router>
