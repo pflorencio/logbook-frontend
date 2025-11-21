@@ -1,7 +1,11 @@
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
-export default function Layout({ children }: { children: React.ReactNode }) {
+interface LayoutProps {
+  children: React.ReactNode;
+}
+
+export default function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
 
