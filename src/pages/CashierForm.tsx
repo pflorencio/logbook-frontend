@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { BACKEND_URL } from "@/lib/api";
 
-console.log("🧾 CashierForm v6 loaded");
+console.log("🟢 Using backend URL:", BACKEND_URL);
 
 interface FormState {
   date: string;
@@ -42,6 +42,9 @@ const numericFields: (keyof FormState)[] = [
 ];
 
 const CashierForm: React.FC = () => {
+  console.log("🧾 CashierForm v7 (iPad UI) loaded");
+
+  // Store + submittedBy from localStorage (set during login)
   const store =
     (typeof window !== "undefined" && localStorage.getItem("store")) ||
     "Unknown Store";
@@ -50,7 +53,9 @@ const CashierForm: React.FC = () => {
     (typeof window !== "undefined" && localStorage.getItem("submittedBy")) ||
     `${store} Cashier`;
 
-  // form + state
+  // ----------------------------------------------------
+  // State
+  // ----------------------------------------------------
   const [selectedDate, setSelectedDate] = useState<string>("");
   const [form, setForm] = useState<FormState>({
     date: "",
@@ -80,24 +85,14 @@ const CashierForm: React.FC = () => {
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
 
+  // Manager unlock modal
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [managerPin, setManagerPin] = useState("");
+
   const lastFetchAbort = useRef<AbortController | null>(null);
 
   const peso = (n: number | string): string =>
-    isNaN(Number(n)) || n === ""
-      ? "₱0"
-      : `₱${Number(n).toLocaleString("en-PH")}`;
-
-  // ----------------------------------------------------
-  // Logout handler
-  // ----------------------------------------------------
-  const handleLogout = () => {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem("cashierSession");
-    localStorage.removeItem("store");
-    localStorage.removeItem("submittedBy");
-    localStorage.removeItem("cashier_id");
-    window.location.href = "/login";
-  };
+    isNaN(Number(n)) || n === "" ? "₱0" : `₱${Number(n).toLocaleString("en-PH")}`;
 
   // ----------------------------------------------------
   // Computed fields
@@ -132,7 +127,7 @@ const CashierForm: React.FC = () => {
   const transferNeeded = rawCashForDeposit < 0 ? Math.abs(rawCashForDeposit) : 0;
 
   // ----------------------------------------------------
-  // Required fields check — THIS DRIVES SAVE BUTTON
+  // Required fields check — DRIVES SAVE BUTTON
   // ----------------------------------------------------
   const isFormValid = numericFields.every((field) => {
     const v = form[field];
@@ -145,7 +140,7 @@ const CashierForm: React.FC = () => {
   const handleChange = (field: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
 
-    // live error removal
+    // live error removal (if we re-enable field-level errors later)
     setFormErrors((prev) => {
       if (!prev[field]) return prev;
       const next = { ...prev };
@@ -264,7 +259,7 @@ const CashierForm: React.FC = () => {
       if (showToast)
         toast.success(`Record loaded (${lockStatus || "Unlocked"})`);
     } catch (e: any) {
-      if (e.name !== "AbortError") toast.error("Error fetching record.");
+      if (e?.name !== "AbortError") toast.error("Error fetching record.");
     } finally {
       setLoading(false);
     }
@@ -273,14 +268,20 @@ const CashierForm: React.FC = () => {
   useEffect(() => {
     if (!selectedDate) return;
     void fetchExisting(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDate, store]);
 
   // ----------------------------------------------------
   // SAVE
   // ----------------------------------------------------
   const handleSave = async () => {
-    if (isLocked) return toast.error("This record is locked.");
+    if (isLocked) {
+      toast.error("This record is locked.");
+      return;
+    }
 
+    // simple required check – if you want visible red errors later,
+    // this is already wired in via formErrors
     const newErrors: Partial<Record<keyof FormState, string>> = {};
     numericFields.forEach((field) => {
       if (form[field] === "" || form[field] === null) {
@@ -340,13 +341,12 @@ const CashierForm: React.FC = () => {
       if (!res.ok) throw new Error(await res.text());
 
       const data = await res.json();
-      toast.success(
-        data.action === "created" ? "Record created!" : "Updated!",
-      );
+      toast.success(data.action === "created" ? "Record created!" : "Updated!");
 
       setIsLocked(String(data.lock_status).toLowerCase() === "locked");
       await fetchExisting(false);
     } catch (err) {
+      console.error(err);
       toast.error("Save failed.");
     } finally {
       setIsSaving(false);
@@ -354,70 +354,105 @@ const CashierForm: React.FC = () => {
   };
 
   // ----------------------------------------------------
-  // Unlock
+  // Unlock (Manager) – modal version
   // ----------------------------------------------------
-  async function handleUnlock() {
-    const pin = window.prompt("Manager PIN:");
-    if (!pin) return;
+  const openUnlockModal = () => {
+    if (!recordId) {
+      toast.error("No record to unlock.");
+      return;
+    }
+    setManagerPin("");
+    setShowUnlockModal(true);
+  };
+
+  const handleConfirmUnlock = async () => {
+    if (!recordId) return;
+    if (!managerPin || managerPin.length !== 4) {
+      toast.error("Enter 4-digit PIN");
+      return;
+    }
 
     try {
-      const res = await fetch(
-        `${BACKEND_URL}/closings/${recordId}/unlock`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pin }),
-        },
-      );
+      const res = await fetch(`${BACKEND_URL}/closings/${recordId}/unlock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pin: managerPin }),
+      });
 
       if (!res.ok) throw new Error("Unlock failed");
 
       toast.success("Unlocked!");
       setIsLocked(false);
+      setShowUnlockModal(false);
       await fetchExisting(true);
-    } catch {
+    } catch (err) {
+      console.error(err);
       toast.error("Invalid PIN");
     }
-  }
+  };
 
-  const inputCls =
-    "w-full border border-gray-300 rounded-md px-3 py-2 " +
-    (isLocked ? "bg-gray-100 text-gray-500" : "");
+  const handleCancelUnlock = () => {
+    setShowUnlockModal(false);
+    setManagerPin("");
+  };
+
+  // ----------------------------------------------------
+  // UI helpers
+  // ----------------------------------------------------
+  const inputBase =
+    "w-full px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50 " +
+    "text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 " +
+    "transition-shadow shadow-sm";
+
+  const inputDisabled =
+    "bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200";
+
+  const sectionCard =
+    "rounded-2xl bg-white shadow-md p-5 md:p-6 space-y-4 border border-gray-100";
 
   // =====================================================
   // RENDER
   // =====================================================
   return (
-    <div className="min-h-screen bg-gray-50 py-10 px-4 flex justify-center">
+    <div className="min-h-screen bg-[#F5F5F7] px-3 py-4 md:px-6 md:py-8 flex justify-center">
       <Toaster position="top-center" />
 
-      <div className="w-full max-w-2xl bg-white shadow-md rounded-xl p-6">
-        {/* HEADER */}
-        <header className="mb-4">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="text-lg font-semibold">
-              🧾 Daily Closing Form — {store}
-            </h1>
+      <div className="w-full max-w-3xl flex flex-col">
+        {/* HEADER / APP BAR */}
+        <header className="mb-4 md:mb-6">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h1 className="text-[20px] md:text-[24px] font-semibold text-gray-900">
+                Daily Closing Form — {store}
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Complete the end-of-day report for the selected business date.
+              </p>
+            </div>
 
-            <div className="flex items-center gap-3">
-              <span className="hidden sm:inline">Business Date:</span>
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => {
-                  const d = e.target.value;
-                  setSelectedDate(d);
-                  setForm((prev) => ({ ...prev, date: d }));
-                  setFormErrors({});
-                }}
-                className="border border-gray-300 rounded-md px-2 py-1"
-                disabled={false}
-              />
+            {/* Date + Lock badge */}
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs md:text-sm text-gray-500">
+                  Business Date:
+                </span>
+                <input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => {
+                    const d = e.target.value;
+                    setSelectedDate(d);
+                    setForm((prev) => ({ ...prev, date: d }));
+                    setFormErrors({});
+                  }}
+                  className="px-3 py-2 rounded-xl border border-gray-300 bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
 
               {selectedDate && (
                 <span
                   className={
-                    "px-2 py-1 rounded text-xs " +
+                    "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium " +
                     (isLocked
                       ? "bg-yellow-100 text-yellow-800"
                       : "bg-green-100 text-green-800")
@@ -426,44 +461,44 @@ const CashierForm: React.FC = () => {
                   {isLocked ? "Locked" : "Unlocked"}
                 </span>
               )}
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="ml-1 text-xs text-gray-400 hover:text-red-600"
-                title="Logout"
-              >
-                🔓
-              </button>
             </div>
           </div>
 
           {selectedDate && isLocked && (
-            <div className="mt-2 p-2 text-sm border rounded bg-yellow-50 text-yellow-700">
-              🔒 This record is locked. Unlock to edit.
+            <div className="mt-3 px-4 py-2 rounded-2xl bg-yellow-50 text-yellow-800 text-sm flex items-center gap-2 border border-yellow-100">
+              <span>🔒</span>
+              <span>This record is locked. Unlock to edit.</span>
             </div>
           )}
         </header>
 
         {/* NO DATE SELECTED */}
         {!selectedDate && (
-          <p className="text-center text-gray-500 py-10 italic">
-            Please choose a business date.
-          </p>
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-center text-gray-500 italic text-sm md:text-base">
+              Please choose a business date to start today&apos;s closing.
+            </p>
+          </div>
         )}
 
         {/* LOADING */}
         {selectedDate && loading && (
-          <p className="text-center text-gray-500 py-6">Loading…</p>
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-center text-gray-500 text-sm md:text-base">
+              Loading record…
+            </p>
+          </div>
         )}
 
         {/* FORM CONTENT */}
         {selectedDate && !loading && (
-          <>
+          <div className="flex-1 pb-28 space-y-5 md:space-y-6">
             {/* SALES */}
-            <section className="mb-6">
-              <h2 className="font-medium text-center mb-2">Sales Inputs</h2>
-              <div className="grid grid-cols-2 gap-3">
+            <section className={sectionCard}>
+              <h2 className="text-sm font-semibold text-gray-700 text-center tracking-wide uppercase">
+                Sales Inputs
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                 {([
                   ["Total Sales", "totalSales"],
                   ["Net Sales", "netSales"],
@@ -475,14 +510,17 @@ const CashierForm: React.FC = () => {
                   ["Bank Transfer Payments", "bankTransferPayments"],
                   ["Marketing Expense (recorded as sale)", "marketingExpenses"],
                 ] as const).map(([label, field]) => (
-                  <div key={field}>
-                    <label>{label}</label>
+                  <div key={field} className="space-y-1.5">
+                    <label className="block text-xs font-medium text-gray-600">
+                      {label}
+                    </label>
                     <input
                       type="number"
+                      inputMode="numeric"
                       value={form[field]}
                       disabled={isLocked}
                       onChange={(e) => handleChange(field, e.target.value)}
-                      className={inputCls}
+                      className={`${inputBase} ${isLocked ? inputDisabled : ""}`}
                     />
                     {formErrors[field] && (
                       <p className="text-xs text-red-500">
@@ -495,25 +533,28 @@ const CashierForm: React.FC = () => {
             </section>
 
             {/* BUDGETS */}
-            <section className="mb-6">
-              <h2 className="font-medium text-center mb-2">
+            <section className={sectionCard}>
+              <h2 className="text-sm font-semibold text-gray-700 text-center tracking-wide uppercase">
                 Requested Budgets
               </h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                 {([
                   ["Kitchen Budget", "kitchenBudget"],
                   ["Bar Budget", "barBudget"],
                   ["Non-Food Budget", "nonFoodBudget"],
                   ["Staff Meal Budget", "staffMealBudget"],
                 ] as const).map(([label, field]) => (
-                  <div key={field}>
-                    <label>{label}</label>
+                  <div key={field} className="space-y-1.5">
+                    <label className="block text-xs font-medium text-gray-600">
+                      {label}
+                    </label>
                     <input
                       type="number"
+                      inputMode="numeric"
                       value={form[field]}
                       disabled={isLocked}
                       onChange={(e) => handleChange(field, e.target.value)}
-                      className={inputCls}
+                      className={`${inputBase} ${isLocked ? inputDisabled : ""}`}
                     />
                     {formErrors[field] && (
                       <p className="text-xs text-red-500">
@@ -526,23 +567,26 @@ const CashierForm: React.FC = () => {
             </section>
 
             {/* CASH COUNT */}
-            <section className="mb-6">
-              <h2 className="font-medium text-center mb-2">
+            <section className={sectionCard}>
+              <h2 className="text-sm font-semibold text-gray-700 text-center tracking-wide uppercase">
                 Cash Count Inputs
               </h2>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
                 {([
                   ["Actual Cash Counted", "actualCashCounted"],
                   ["Cash Float", "cashFloat"],
                 ] as const).map(([label, field]) => (
-                  <div key={field}>
-                    <label>{label}</label>
+                  <div key={field} className="space-y-1.5">
+                    <label className="block text-xs font-medium text-gray-600">
+                      {label}
+                    </label>
                     <input
                       type="number"
+                      inputMode="numeric"
                       value={form[field]}
                       disabled={isLocked}
                       onChange={(e) => handleChange(field, e.target.value)}
-                      className={inputCls}
+                      className={`${inputBase} ${isLocked ? inputDisabled : ""}`}
                     />
                     {formErrors[field] && (
                       <p className="text-xs text-red-500">
@@ -555,64 +599,120 @@ const CashierForm: React.FC = () => {
             </section>
 
             {/* SUMMARY */}
-            <section className="bg-gray-50 border rounded p-4 mb-6">
-              <h2 className="font-semibold text-center mb-2">Summary</h2>
-              <div className="grid grid-cols-2 text-sm">
-                <div>Variance:</div>
-                <div className="text-right">{peso(variance)}</div>
+            <section className={sectionCard}>
+              <h2 className="text-sm font-semibold text-gray-700 text-center tracking-wide uppercase">
+                Summary
+              </h2>
+              <div className="grid grid-cols-2 gap-y-2 text-sm">
+                <div className="text-gray-500">Variance:</div>
+                <div className="text-right font-medium">
+                  {peso(variance)}
+                </div>
 
-                <div>Total Budgets:</div>
-                <div className="text-right">{peso(totalBudgets)}</div>
+                <div className="text-gray-500">Total Budgets:</div>
+                <div className="text-right font-medium">
+                  {peso(totalBudgets)}
+                </div>
 
-                <div>Cash for Deposit:</div>
-                <div className="text-right">{peso(cashForDeposit)}</div>
+                <div className="text-gray-500">Cash for Deposit:</div>
+                <div className="text-right font-medium">
+                  {peso(cashForDeposit)}
+                </div>
 
-                <div>Transfer Needed:</div>
-                <div className="text-right text-red-600">
+                <div className="text-gray-500">Transfer Needed:</div>
+                <div className="text-right font-medium text-red-600">
                   {transferNeeded > 0 ? peso(transferNeeded) : "₱0"}
                 </div>
               </div>
             </section>
+          </div>
+        )}
 
-            {/* FOOTER BUTTONS */}
-            <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-500">
-                Submitted by: {submittedBy}
+        {/* STICKY BOTTOM BAR (iOS style) */}
+        {selectedDate && !loading && (
+          <div className="fixed inset-x-0 bottom-0 bg-white/95 border-t border-gray-200 backdrop-blur-sm">
+            <div className="max-w-3xl mx-auto px-4 py-3 md:py-4 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
+              <p className="text-xs md:text-sm text-gray-500">
+                Submitted by: <span className="font-medium">{submittedBy}</span>
               </p>
 
-              <div className="flex gap-2">
-                {isLocked ? (
-                  <>
-                    <button
-                      onClick={handleUnlock}
-                      className="px-4 py-2 border rounded"
-                    >
-                      Unlock (Manager)
-                    </button>
-                    <button
-                      disabled
-                      className="px-6 py-2 bg-gray-300 text-white rounded"
-                    >
-                      Locked
-                    </button>
-                  </>
-                ) : (
+              <div className="flex items-center gap-3">
+                {isLocked && (
                   <button
-                    onClick={handleSave}
-                    disabled={isSaving || !isFormValid}
-                    className={`px-6 py-2 rounded text-white font-medium
-                      ${
-                        !isFormValid || isSaving
-                          ? "bg-gray-300 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-700"
-                      }`}
+                    type="button"
+                    onClick={openUnlockModal}
+                    className="px-3 py-2 rounded-full border border-gray-300 text-xs md:text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
                   >
-                    {isSaving ? "Saving..." : "Save"}
+                    Unlock (Manager)
                   </button>
                 )}
+
+                <button
+                  type="button"
+                  onClick={handleSave}
+                  disabled={isSaving || !isFormValid || isLocked}
+                  className={`w-full md:w-auto px-6 py-3 rounded-full text-sm font-semibold text-white transition-colors shadow-md ${
+                    isLocked || !isFormValid || isSaving
+                      ? "bg-gray-300 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {isLocked
+                    ? "Locked"
+                    : isSaving
+                    ? "Saving…"
+                    : "Save Daily Closing"}
+                </button>
               </div>
             </div>
-          </>
+          </div>
+        )}
+
+        {/* MANAGER UNLOCK MODAL */}
+        {showUnlockModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6 space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Manager Unlock
+              </h3>
+              <p className="text-sm text-gray-500">
+                Enter the 4-digit manager PIN to unlock this record for editing.
+              </p>
+
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-gray-600">
+                  Manager PIN
+                </label>
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={managerPin}
+                  onChange={(e) =>
+                    setManagerPin(e.target.value.replace(/\D/g, ""))
+                  }
+                  className="w-full px-4 py-3 rounded-2xl border border-gray-300 bg-gray-50 text-center tracking-[0.4em] text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCancelUnlock}
+                  className="px-4 py-2 rounded-full text-sm border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmUnlock}
+                  className="px-5 py-2 rounded-full text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700"
+                >
+                  Unlock
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
