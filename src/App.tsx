@@ -2,39 +2,73 @@
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
+import ProtectedRoute from "./components/ProtectedRoute";
+
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import CashierForm from "./pages/CashierForm";
 import DailyClosingPage from "./pages/DailyClosingPage"; 
 import SettingsPage from "./pages/settings";
-import HomePage from "./pages/index";   // your landing page
+import HomePage from "./pages/index";
 import HistoryPage from "./pages/history";
 
 export default function App() {
   return (
     <Router>
-      <div className="min-h-screen flex flex-col p-0 m-0">
+      <div className="min-h-screen flex flex-col">
+
         <Routes>
-          {/* Landing Page */}
-          <Route path="/" element={<HomePage />} />
-
-          {/* Dashboard (Manager) */}
-          <Route path="/dashboard" element={<Dashboard />} />
-
-          {/* Store Login */}
+          {/* Public Routes */}
           <Route path="/login" element={<Login />} />
 
-          {/* Cashier Closing Form */}
-          <Route path="/cashier" element={<CashierForm />} />
+          {/* Optional: Manager dashboard could be protected separately */}
+          <Route path="/dashboard" element={<Dashboard />} />
 
-          {/* Daily Closing Page (the new wrapper with Layout) */}
-          <Route path="/daily" element={<DailyClosingPage />} />
+          {/* Protected Routes - require cashier login */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <HomePage />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* History Page */}
-          <Route path="/history" element={<HistoryPage />} />
+          <Route
+            path="/cashier"
+            element={
+              <ProtectedRoute>
+                <CashierForm />
+              </ProtectedRoute>
+            }
+          />
 
-          {/* Settings */}
-          <Route path="/settings" element={<SettingsPage />} />
+          <Route
+            path="/daily"
+            element={
+              <ProtectedRoute>
+                <DailyClosingPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/history"
+            element={
+              <ProtectedRoute>
+                <HistoryPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </div>
     </Router>
