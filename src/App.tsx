@@ -6,8 +6,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
-import CashierForm from "./pages/CashierForm";
-import DailyClosingPage from "./pages/DailyClosingPage"; 
+import CashierForm from "./pages/CashierForm"; 
 import SettingsPage from "./pages/settings";
 import HomePage from "./pages/index";
 import HistoryPage from "./pages/history";
@@ -39,15 +38,6 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <CashierForm />
-              </ProtectedRoute>
-            }
-          />
-
-          <Route
-            path="/daily"
-            element={
-              <ProtectedRoute>
-                <DailyClosingPage />
               </ProtectedRoute>
             }
           />

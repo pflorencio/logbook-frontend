@@ -1,40 +1,38 @@
 import React from "react";
 import { LogOut } from "lucide-react";
 
-interface LayoutProps {
-  children: React.ReactNode;
-  cashierName?: string | null;
-  onLogout?: () => void;
-}
-
 export default function Layout({
   children,
   cashierName,
   onLogout,
-}: LayoutProps) {
+}: {
+  children: React.ReactNode;
+  cashierName?: string;
+  onLogout?: () => void;
+}) {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      {/* TOP BAR */}
-      <div className="flex justify-between items-center px-6 py-4 bg-white shadow-sm">
-        <div />
+      {/* Header */}
+      <header className="bg-white shadow-md p-4 flex justify-between items-center">
+        <h1 className="text-xl font-semibold">StoreHub Ops</h1>
 
-        {cashierName && (
-          <div className="flex items-center gap-3">
-            <span className="text-gray-600 text-sm">
-              Hello, <strong>{cashierName}</strong> 👋
+        <div className="flex items-center gap-4">
+          {cashierName && (
+            <span className="text-gray-600 font-medium">
+              Hello, {cashierName} 👋
             </span>
+          )}
 
-            <button
-              onClick={onLogout}
-              className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition"
-            >
-              <LogOut size={18} />
+          {onLogout && (
+            <button onClick={onLogout} className="text-gray-600 hover:text-black">
+              <LogOut size={20} />
             </button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </header>
 
-      <main className="flex-1">{children}</main>
+      {/* Main Content */}
+      <main className="flex-grow p-4">{children}</main>
     </div>
   );
 }

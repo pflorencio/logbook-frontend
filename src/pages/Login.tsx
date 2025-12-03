@@ -24,6 +24,7 @@ const LoginPage: React.FC = () => {
     localStorage.removeItem("cashierSession");
     localStorage.removeItem("token");
     localStorage.removeItem("store");
+    localStorage.removeItem("submittedBy");
   }, []);
 
   // ---------------------------------------------------------
@@ -78,6 +79,9 @@ const LoginPage: React.FC = () => {
     localStorage.setItem("token", "logged_in");
     localStorage.setItem("store", cashier.store);
 
+    // ⭐ NEW — store submittedBy for CashierForm + Layout
+    localStorage.setItem("submittedBy", cashier.name);
+
     navigate("/cashier", { replace: true });
   };
 
@@ -100,9 +104,7 @@ const LoginPage: React.FC = () => {
           >
             <option value="">Select your name</option>
 
-            {cashiers.length === 0 && (
-              <option disabled>Loading...</option>
-            )}
+            {cashiers.length === 0 && <option disabled>Loading...</option>}
 
             {cashiers.map((c) => (
               <option key={c.cashier_id} value={c.cashier_id}>
