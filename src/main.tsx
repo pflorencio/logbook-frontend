@@ -11,7 +11,13 @@ import Dashboard from "./pages/Dashboard";
 import CashierForm from "./pages/CashierForm";
 import Login from "./pages/Login";
 
-ReactDOM.createRoot(document.getElementById("root")).render(
+// Ensure root element is not null (TypeScript requirement)
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("❌ Root element not found. Check index.html for <div id=\"root\"></div>");
+}
+
+ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
     <Router>
       <Routes>

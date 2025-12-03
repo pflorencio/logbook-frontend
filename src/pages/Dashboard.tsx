@@ -4,48 +4,61 @@ import {
   fetchDailySummary,
   verifyRecord,
   updateField,
+  type ClosingRecord,
 } from "../lib/api";
 
+// --------- Types ---------
+type RecordItem = ClosingRecord;
+type AirtableFields = RecordItem["fields"];
+
+interface CellStatusMap {
+  [recordId: string]: {
+    [fieldName: string]: "saving" | "success" | "error" | null;
+  };
+}
+
+interface ToastState {
+  message: string;
+  type: "success" | "error" | "info";
+}
+
+// ----------------------------------------------------
+
 export default function Dashboard() {
-  const [date, setDate] = useState(
-    () => new Date().toISOString().split("T")[0],
+  const [date, setDate] = useState<string>(
+    () => new Date().toISOString().split("T")[0]
   );
-  const [records, setRecords] = useState([]);
-  const [summary, setSummary] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState({});
-  const [cellStatus, setCellStatus] = useState({}); // {recordId: {fieldName: 'saving'|'success'|'error'}}
-  const [toast, setToast] = useState(null);
-  const [debugInfo, setDebugInfo] = useState("");
+
+  const [records, setRecords] = useState<RecordItem[]>([]);
+  const [summary, setSummary] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [verifying, setVerifying] = useState<{ [id: string]: boolean }>({});
+  const [cellStatus, setCellStatus] = useState<CellStatusMap>({});
+  const [toast, setToast] = useState<ToastState | null>(null);
+  const [debugInfo, setDebugInfo] = useState<string>("");
 
   // --- Toast helper ---
-  const showToast = (message, type = "info") => {
+  const showToast = (
+    message: string,
+    type: "success" | "error" | "info" = "info"
+  ) => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 2500);
   };
 
-  // --- Currency helper ---
-  const formatCurrency = (num) =>
-    typeof num === "number" && !isNaN(num)
-      ? `₱${num.toLocaleString(undefined, { minimumFractionDigits: 0 })}`
-      : "-";
-
   // --- Fetch data ---
-  async function loadData(selectedDate) {
+  async function loadData(selectedDate: string) {
     setLoading(true);
-    const apiBase =
-      import.meta.env.VITE_API_BASE ||
-      "https://dc1d5084-d907-4236-8b8b-7b2b6225dddf-00-wb051pwb7av8.janeway.replit.dev";
     setDebugInfo(`Fetching for: ${selectedDate}`);
 
     try {
       const closings = await fetchClosings(selectedDate);
-      const data = closings.records || [];
+      const data = (closings.records || []) as RecordItem[];
       setRecords(data);
 
       const daily = await fetchDailySummary(selectedDate);
       setSummary(daily.preview || "");
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ loadData error:", err);
       setDebugInfo(`Error fetching data: ${err.message}`);
     }
@@ -57,31 +70,42 @@ export default function Dashboard() {
   }, [date]);
 
   // --- Inline edit ---
-  const handleInlineEdit = async (recordId, fieldName, newValue) => {
+  const handleInlineEdit = async (
+    recordId: string,
+    fieldName: string,
+    newValue: string
+  ) => {
     try {
       setCellStatus((prev) => ({
         ...prev,
         [recordId]: { ...prev[recordId], [fieldName]: "saving" },
       }));
-      const payload = { [fieldName]: Number(newValue) || 0 };
-      await updateField(recordId, payload);
 
-      // Update local state immediately for smooth UX
+      const numericValue = Number(newValue) || 0;
+
+      // 🔧 Call API using the typed signature from api.ts
+      await updateField(recordId, fieldName, numericValue);
+
+      // Update UI optimistically
       setRecords((prev) =>
         prev.map((r) =>
           r.id === recordId
             ? {
                 ...r,
-                fields: { ...r.fields, [fieldName]: Number(newValue) || 0 },
+                fields: {
+                  ...r.fields,
+                  [fieldName]: numericValue,
+                },
               }
-            : r,
-        ),
+            : r
+        )
       );
 
       setCellStatus((prev) => ({
         ...prev,
         [recordId]: { ...prev[recordId], [fieldName]: "success" },
       }));
+
       showToast("✅ Saved successfully", "success");
     } catch (err) {
       console.error("Error updating field:", err);
@@ -101,17 +125,20 @@ export default function Dashboard() {
   };
 
   // --- Verify record ---
-  const handleVerify = async (id, status) => {
+  const handleVerify = async (id: string, status: string) => {
     try {
       setVerifying((prev) => ({ ...prev, [id]: true }));
       await verifyRecord(id, status, "Patrick Florencio");
       showToast(`✅ Record ${status}`, "success");
+
       await loadData(date);
 
-      // If all stores verified, refresh summary automatically
+      // Auto-refresh summary if all verified
       const allVerified = records.every(
-        (r) => (r.fields["Verified Status"] || "").toLowerCase() === "verified",
+        (r) =>
+          (r.fields["Verified Status"] || "").toLowerCase() === "verified"
       );
+
       if (allVerified) {
         const daily = await fetchDailySummary(date);
         setSummary(daily.preview || "");
@@ -124,6 +151,8 @@ export default function Dashboard() {
       setVerifying((prev) => ({ ...prev, [id]: false }));
     }
   };
+
+  // ----------------------------------------------------
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -148,8 +177,8 @@ export default function Dashboard() {
             toast.type === "success"
               ? "bg-green-600"
               : toast.type === "error"
-                ? "bg-red-600"
-                : "bg-blue-600"
+              ? "bg-red-600"
+              : "bg-blue-600"
           }`}
         >
           {toast.message}
@@ -165,12 +194,14 @@ export default function Dashboard() {
 
       {!loading &&
         records.map((r) => {
-          const f = r.fields || {};
+          const f: AirtableFields = r.fields || {};
+
           return (
             <div
               key={r.id}
               className="bg-white rounded-lg shadow-md mb-6 border border-gray-200"
             >
+              {/* Header */}
               <div className="flex items-center justify-between bg-gray-50 px-4 py-2 rounded-t-lg">
                 <h2 className="font-bold text-lg flex items-center gap-2">
                   🏪 {f.Store || "Unknown Store"}
@@ -183,6 +214,7 @@ export default function Dashboard() {
                 </span>
               </div>
 
+              {/* Table */}
               <table className="w-full text-sm">
                 <tbody>
                   {[
@@ -222,7 +254,11 @@ export default function Dashboard() {
                               className="w-28 border rounded px-2 py-1 text-right text-gray-700"
                               defaultValue={f[field]}
                               onBlur={(e) =>
-                                handleInlineEdit(r.id, field, e.target.value)
+                                handleInlineEdit(
+                                  r.id,
+                                  field,
+                                  e.target.value
+                                )
                               }
                             />
                             {cellStatus[r.id]?.[field] === "saving" && (
@@ -243,6 +279,8 @@ export default function Dashboard() {
                       </td>
                     </tr>
                   ))}
+
+                  {/* Actions */}
                   <tr className="border-t bg-gray-50">
                     <td className="p-2 text-right font-semibold">Actions</td>
                     <td className="p-2 text-right space-x-2">
@@ -253,6 +291,7 @@ export default function Dashboard() {
                       >
                         {verifying[r.id] ? "..." : "Verify"}
                       </button>
+
                       <button
                         disabled={verifying[r.id]}
                         onClick={() => handleVerify(r.id, "Flagged")}

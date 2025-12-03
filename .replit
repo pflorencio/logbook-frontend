@@ -4,47 +4,21 @@ modules = ["nodejs-20"]
 [env]
 PORT = "3000"
 
-run = "npm run dev"
+# Run preview (NOT dev) for deployment
+run = "npm run preview"
 
 [nix]
 channel = "stable-24_05"
 
+# Map external port 80 → internal port 3000
 [[ports]]
-localPort = 5000
+localPort = 3000
 externalPort = 80
-
-[[ports]]
-localPort = 5001
-externalPort = 3000
-
-[workflows]
-runButton = "Project"
-
-[[workflows.workflow]]
-name = "Project"
-mode = "parallel"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "workflow.run"
-args = "dev"
-
-[[workflows.workflow]]
-name = "dev"
-author = "agent"
-
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "npm run dev -- --port 5000"
-waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
-
-[agent]
-expertMode = true
 
 [deployment]
 deploymentTarget = "autoscale"
-run = ["npm", "run", "preview"]
 build = ["npm", "run", "build"]
+run = ["npm", "run", "preview"]
+
+[agent]
+expertMode = true
