@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
+import { BACKEND_URL } from "@/lib/api";
 
-const BACKEND_URL = "https://restaurant-ops-backend.onrender.com";
-console.log("🟢 Using backend URL:", BACKEND_URL);
+console.log("🧾 CashierForm v6 loaded");
 
 interface FormState {
   date: string;
@@ -42,8 +42,6 @@ const numericFields: (keyof FormState)[] = [
 ];
 
 const CashierForm: React.FC = () => {
-  console.log("🧾 CashierForm v6 loaded");
-
   const store =
     (typeof window !== "undefined" && localStorage.getItem("store")) ||
     "Unknown Store";
@@ -80,13 +78,26 @@ const CashierForm: React.FC = () => {
   const [recordId, setRecordId] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [lastFetchedLock, setLastFetchedLock] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
 
   const lastFetchAbort = useRef<AbortController | null>(null);
 
   const peso = (n: number | string): string =>
-    isNaN(Number(n)) || n === "" ? "₱0" : `₱${Number(n).toLocaleString("en-PH")}`;
+    isNaN(Number(n)) || n === ""
+      ? "₱0"
+      : `₱${Number(n).toLocaleString("en-PH")}`;
+
+  // ----------------------------------------------------
+  // Logout handler
+  // ----------------------------------------------------
+  const handleLogout = () => {
+    if (typeof window === "undefined") return;
+    localStorage.removeItem("cashierSession");
+    localStorage.removeItem("store");
+    localStorage.removeItem("submittedBy");
+    localStorage.removeItem("cashier_id");
+    window.location.href = "/login";
+  };
 
   // ----------------------------------------------------
   // Computed fields
@@ -252,7 +263,7 @@ const CashierForm: React.FC = () => {
 
       if (showToast)
         toast.success(`Record loaded (${lockStatus || "Unlocked"})`);
-    } catch (e) {
+    } catch (e: any) {
       if (e.name !== "AbortError") toast.error("Error fetching record.");
     } finally {
       setLoading(false);
@@ -270,7 +281,6 @@ const CashierForm: React.FC = () => {
   const handleSave = async () => {
     if (isLocked) return toast.error("This record is locked.");
 
-    // Validate required numeric fields
     const newErrors: Partial<Record<keyof FormState, string>> = {};
     numericFields.forEach((field) => {
       if (form[field] === "" || form[field] === null) {
@@ -330,7 +340,9 @@ const CashierForm: React.FC = () => {
       if (!res.ok) throw new Error(await res.text());
 
       const data = await res.json();
-      toast.success(data.action === "created" ? "Record created!" : "Updated!");
+      toast.success(
+        data.action === "created" ? "Record created!" : "Updated!",
+      );
 
       setIsLocked(String(data.lock_status).toLowerCase() === "locked");
       await fetchExisting(false);
@@ -382,13 +394,13 @@ const CashierForm: React.FC = () => {
       <div className="w-full max-w-2xl bg-white shadow-md rounded-xl p-6">
         {/* HEADER */}
         <header className="mb-4">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <h1 className="text-lg font-semibold">
               🧾 Daily Closing Form — {store}
             </h1>
 
             <div className="flex items-center gap-3">
-              <span>Business Date:</span>
+              <span className="hidden sm:inline">Business Date:</span>
               <input
                 type="date"
                 value={selectedDate}
@@ -414,6 +426,15 @@ const CashierForm: React.FC = () => {
                   {isLocked ? "Locked" : "Unlocked"}
                 </span>
               )}
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="ml-1 text-xs text-gray-400 hover:text-red-600"
+                title="Logout"
+              >
+                🔓
+              </button>
             </div>
           </div>
 
@@ -464,7 +485,9 @@ const CashierForm: React.FC = () => {
                       className={inputCls}
                     />
                     {formErrors[field] && (
-                      <p className="text-xs text-red-500">{formErrors[field]}</p>
+                      <p className="text-xs text-red-500">
+                        {formErrors[field]}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -473,7 +496,9 @@ const CashierForm: React.FC = () => {
 
             {/* BUDGETS */}
             <section className="mb-6">
-              <h2 className="font-medium text-center mb-2">Requested Budgets</h2>
+              <h2 className="font-medium text-center mb-2">
+                Requested Budgets
+              </h2>
               <div className="grid grid-cols-2 gap-3">
                 {([
                   ["Kitchen Budget", "kitchenBudget"],
@@ -491,7 +516,9 @@ const CashierForm: React.FC = () => {
                       className={inputCls}
                     />
                     {formErrors[field] && (
-                      <p className="text-xs text-red-500">{formErrors[field]}</p>
+                      <p className="text-xs text-red-500">
+                        {formErrors[field]}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -500,7 +527,9 @@ const CashierForm: React.FC = () => {
 
             {/* CASH COUNT */}
             <section className="mb-6">
-              <h2 className="font-medium text-center mb-2">Cash Count Inputs</h2>
+              <h2 className="font-medium text-center mb-2">
+                Cash Count Inputs
+              </h2>
               <div className="grid grid-cols-2 gap-3">
                 {([
                   ["Actual Cash Counted", "actualCashCounted"],
@@ -516,7 +545,9 @@ const CashierForm: React.FC = () => {
                       className={inputCls}
                     />
                     {formErrors[field] && (
-                      <p className="text-xs text-red-500">{formErrors[field]}</p>
+                      <p className="text-xs text-red-500">
+                        {formErrors[field]}
+                      </p>
                     )}
                   </div>
                 ))}
@@ -545,7 +576,9 @@ const CashierForm: React.FC = () => {
 
             {/* FOOTER BUTTONS */}
             <div className="flex justify-between items-center">
-              <p className="text-sm text-gray-500">Submitted by: {submittedBy}</p>
+              <p className="text-sm text-gray-500">
+                Submitted by: {submittedBy}
+              </p>
 
               <div className="flex gap-2">
                 {isLocked ? (

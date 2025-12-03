@@ -1,210 +1,151 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { BACKEND_URL } from "@/lib/api";
 
-// -------------------------------------------------------------
-// Types
-// -------------------------------------------------------------
-interface StorePinMap {
-  [storeName: string]: string;
+interface CashierOption {
+  cashier_id: string;
+  name: string;
+  store: string;
+  store_normalized?: string;
 }
 
-interface LocationState {
-  from?: string;
-}
+export default function CashierLoginPage(): JSX.Element {
+  const [cashiers, setCashiers] = useState<CashierOption[]>([]);
+  const [selectedId, setSelectedId] = useState("");
+  const [pin, setPin] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-// -------------------------------------------------------------
-// PIN Definitions (central source of truth)
-// -------------------------------------------------------------
-import { StoreName, STORE_PINS as STATIC_STORE_PINS } from "../types/stores";
-
-// -------------------------------------------------------------
-// Utility: generate a simple session token
-// -------------------------------------------------------------
-function makeSessionToken(): string {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-// -------------------------------------------------------------
-// Utility: constant-time comparison for PINs
-// -------------------------------------------------------------
-function safeEqual(a = "", b = ""): boolean {
-  if (a.length !== b.length) return false;
-  let out = 0;
-  for (let i = 0; i < a.length; i++) {
-    out |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return out === 0;
-}
-
-// -------------------------------------------------------------
-// Component
-// -------------------------------------------------------------
-export default function Login() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const state = location.state as LocationState | null;
-
-  // -----------------------------------------------------------
-  // Allow dynamic overrides (window.STORE_PINS) but default to static
-  // -----------------------------------------------------------
-  const PIN_MAP = useMemo<StorePinMap>(() => {
-    if (typeof window !== "undefined" && (window as any).STORE_PINS) {
-      return (window as any).STORE_PINS as StorePinMap;
+  // If already logged in, send to /cashier
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const existing = localStorage.getItem("cashierSession");
+    if (existing) {
+      window.location.href = "/cashier";
     }
-    return STATIC_STORE_PINS;
   }, []);
 
-  const [pin, setPin] = useState<string>("");
-  const [showPin, setShowPin] = useState<boolean>(false);
-  const [error, setError] = useState<string>("");
-
-  // -----------------------------------------------------------
-  // Auto-redirect cashier if already logged in
-  // -----------------------------------------------------------
+  // Load active cashiers for dropdown
   useEffect(() => {
-    const existingStore = localStorage.getItem("store");
-    const existingToken = localStorage.getItem("token");
-
-    if (existingStore && existingToken) {
-      const timer = setTimeout(() => {
-        navigate("/cashier", { replace: true });
-      }, 800);
-
-      return () => clearTimeout(timer);
+    async function loadCashiers() {
+      try {
+        const res = await fetch(`${BACKEND_URL}/auth/cashiers`);
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        setCashiers(data || []);
+      } catch (err) {
+        console.error(err);
+        setError("Unable to load cashiers. Please contact your manager.");
+      }
     }
-  }, [navigate]);
 
-  // -----------------------------------------------------------
-  // Clear session
-  // -----------------------------------------------------------
-  function handleLogoutIfAny() {
-    localStorage.removeItem("store");
-    localStorage.removeItem("token");
-    localStorage.removeItem("submittedBy");
-    alert("Session cleared. You can now log in again.");
-  }
+    loadCashiers();
+  }, []);
 
-  // -----------------------------------------------------------
-  // Submit handler
-  // -----------------------------------------------------------
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    const entered = pin.trim();
-    if (!entered) {
-      setError("Please enter your PIN.");
+    if (!selectedId || pin.length !== 4) {
+      setError("Select your name and enter your 4-digit PIN.");
       return;
     }
 
-    // Validate PIN
-    const match = Object.entries(PIN_MAP).find(([_, v]) => safeEqual(entered, v));
+    try {
+      setLoading(true);
+      const res = await fetch(`${BACKEND_URL}/auth/cashier-login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cashier_id: selectedId, pin }),
+      });
 
-    if (!match) {
-      setError("Invalid PIN. Please try again.");
-      return;
+      if (!res.ok) {
+        setError("Invalid PIN. Please try again.");
+        setLoading(false);
+        return;
+      }
+
+      const data = await res.json();
+
+      if (typeof window !== "undefined") {
+        // Save full session
+        localStorage.setItem("cashierSession", JSON.stringify(data));
+        // For existing form logic:
+        localStorage.setItem("store", data.store || "");
+        localStorage.setItem("submittedBy", data.name || "");
+        localStorage.setItem("cashier_id", data.cashier_id || "");
+      }
+
+      window.location.href = "/cashier";
+    } catch (err) {
+      console.error(err);
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
     }
-
-    const [storeName] = match as [StoreName, string];
-    const token = makeSessionToken();
-
-    // Save session
-    localStorage.setItem("store", storeName);
-    localStorage.setItem("token", token);
-    localStorage.setItem("submittedBy", `${storeName} Cashier`);
-
-    // Redirect to prior page or cashier
-    const redirectTo = state?.from || "/cashier";
-    navigate(redirectTo, { replace: true });
-  }
+  };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gray-50 p-6">
-      <div className="w-full max-w-md bg-white rounded-xl shadow-md p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-semibold">Store Login</h1>
-        </div>
-
-        <p className="text-sm text-gray-600 mb-6">
-          Enter your <span className="font-medium">store PIN</span> to access the cashier form.
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      <div className="w-full max-w-sm bg-white shadow-md rounded-xl p-6">
+        <h1 className="text-xl font-semibold mb-1 text-center">
+          Cashier Login
+        </h1>
+        <p className="text-xs text-gray-500 mb-4 text-center">
+          Select your name and enter your 4-digit PIN to start today&apos;s
+          closing.
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* PIN Input */}
+        <form onSubmit={handleLogin} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Store PIN
-            </label>
+            <label className="block text-sm mb-1">Name</label>
+            <select
+              value={selectedId}
+              onChange={(e) => setSelectedId(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              <option value="">Select your name</option>
+              {cashiers.map((c) => (
+                <option key={c.cashier_id} value={c.cashier_id}>
+                  {c.name} {c.store ? `— ${c.store}` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div className="flex">
-              <input
-                type={showPin ? "text" : "password"}
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={pin}
-                onChange={(e) => setPin(e.target.value)}
-                className="flex-1 rounded-l-md border border-gray-300 px-3 py-2 
-                           focus:outline-none focus:ring-2 focus:ring-blue-500 
-                           focus:border-blue-500"
-                placeholder="••••"
-                autoFocus
-              />
-
-              <button
-                type="button"
-                onClick={() => setShowPin((s) => !s)}
-                className="rounded-r-md border border-l-0 border-gray-300 px-3 py-2 
-                           text-sm text-gray-600 hover:bg-gray-50"
-              >
-                {showPin ? "Hide" : "Show"}
-              </button>
-            </div>
-
-            {/* Display Test PINs */}
-            <p className="mt-2 text-xs text-gray-500">
-              Test PINs:{" "}
-              {Object.entries(PIN_MAP)
-                .map(([name, p]) => `${name}: ${p}`)
-                .join(" • ")}
+          <div>
+            <label className="block text-sm mb-1">PIN</label>
+            <input
+              type="password"
+              inputMode="numeric"
+              maxLength={4}
+              value={pin}
+              onChange={(e) =>
+                setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+              }
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-lg tracking-[0.4em] text-center"
+              placeholder="••••"
+            />
+            <p className="text-[10px] text-gray-400 mt-1 text-center">
+              4-digit PIN provided by your manager.
             </p>
           </div>
 
-          {/* Error Box */}
           {error && (
-            <div className="rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
-              {error}
-            </div>
+            <p className="text-xs text-red-500 text-center">{error}</p>
           )}
 
-          {/* Submit Button */}
           <button
             type="submit"
-            className="w-full rounded-md bg-blue-600 text-white py-2.5 font-medium 
-                       hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={!selectedId || pin.length !== 4 || loading}
+            className={`w-full py-2 rounded-md text-white text-sm font-medium ${
+              !selectedId || pin.length !== 4 || loading
+                ? "bg-gray-300 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
-            Continue
+            {loading ? "Logging in..." : "Login"}
           </button>
         </form>
-
-        {/* Divider */}
-        <div className="my-6 border-t border-gray-200"></div>
-
-        {/* Clear Stored Session */}
-        <div className="text-center">
-          <button
-            type="button"
-            onClick={handleLogoutIfAny}
-            className="text-sm text-gray-500 hover:text-red-600 font-medium"
-          >
-            🔄 Clear saved session
-          </button>
-        </div>
-
-        <p className="mt-6 text-xs text-gray-400 text-center">
-          You’ll be redirected to your store’s cashier form.
-          <br />
-          Multi-user login coming soon.
-        </p>
       </div>
     </div>
   );
