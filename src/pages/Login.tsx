@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { fetchCashiers } from "@/lib/api";
 
 interface Cashier {
-  id: string;
+  cashier_id: string;
   name: string;
   store: string;
+  store_normalized: string;
 }
 
 const LoginPage: React.FC = () => {
@@ -15,68 +17,58 @@ const LoginPage: React.FC = () => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
 
-  // --------------------------------------------------------------------
-  // 🔄 Always start with a fresh login screen (clear previous session)
-  // --------------------------------------------------------------------
+  // ---------------------------------------------------------
+  // 🔄 Always start with a fresh login screen
+  // ---------------------------------------------------------
   useEffect(() => {
     localStorage.removeItem("cashierSession");
     localStorage.removeItem("token");
     localStorage.removeItem("store");
-    setSelectedCashier("");
-    setPin("");
   }, []);
 
-  // --------------------------------------------------------------------
-  // 📌 Load Cashiers from Backend API (Live Airtable Data)
-  // --------------------------------------------------------------------
+  // ---------------------------------------------------------
+  // 📌 Load Cashiers from Backend API (/auth/cashiers)
+  // ---------------------------------------------------------
   useEffect(() => {
-    async function fetchCashiers() {
+    async function load() {
       try {
-        const backend = import.meta.env.VITE_API_URL;
-
-        const res = await fetch(`${backend}/cashiers`);
-        const data = await res.json();
-
-        if (data.success) {
-          setCashiers(data.cashiers);
+        const list = await fetchCashiers();
+        if (Array.isArray(list)) {
+          setCashiers(list);
         } else {
-          console.error("Failed to load cashiers:", data.message);
+          console.error("Unexpected cashier response:", list);
         }
       } catch (err) {
-        console.error("❌ Error fetching cashiers:", err);
+        console.error("❌ Error loading cashiers:", err);
       }
     }
-
-    fetchCashiers();
+    load();
   }, []);
 
-  // --------------------------------------------------------------------
+  // ---------------------------------------------------------
   // 🟦 Handle Login
-  // --------------------------------------------------------------------
+  // ---------------------------------------------------------
   const handleLogin = () => {
     if (!selectedCashier || pin.length !== 4) {
       setError("Please enter your name and 4-digit PIN.");
       return;
     }
 
-    const cashier = cashiers.find((c) => c.id === selectedCashier);
+    const cashier = cashiers.find((c) => c.cashier_id === selectedCashier);
 
     if (!cashier) {
       setError("Invalid cashier selection.");
       return;
     }
 
-    // (Optional) ⚠️ For now PIN is not validated (we add this in Sprint 2)
     if (!/^\d{4}$/.test(pin)) {
-      setError("PIN must be a 4-digit number.");
+      setError("PIN must be 4 digits.");
       return;
     }
 
-    // ----------------------------------------------------------------
-    // 🔐 Save Session
-    // ----------------------------------------------------------------
+    // 🔐 Save session
     const session = {
-      cashierId: cashier.id,
+      cashierId: cashier.cashier_id,
       cashierName: cashier.name,
       store: cashier.store,
       timestamp: Date.now(),
@@ -113,7 +105,7 @@ const LoginPage: React.FC = () => {
             )}
 
             {cashiers.map((c) => (
-              <option key={c.id} value={c.id}>
+              <option key={c.cashier_id} value={c.cashier_id}>
                 {c.name} — {c.store}
               </option>
             ))}
