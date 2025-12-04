@@ -1,73 +1,39 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import Layout from "../components/Layout";
+import { useNavigate } from "react-router-dom";
 
-// -------------------------------------------------------------
-// Central Store Types & Data
-// -------------------------------------------------------------
-import { StoreName, STORE_NAMES } from "../types/stores";
+export default function SettingsPage(): JSX.Element {
+  const navigate = useNavigate();
 
-// -------------------------------------------------------------
-// Component
-// -------------------------------------------------------------
-export default function SettingsPage() {
-  const [store, setStore] = useState<StoreName>(""); // selected store
-  const [cashierName, setCashierName] = useState<string>(""); // cashier identity
+  // Load session info
+  const session = JSON.parse(localStorage.getItem("cashierSession") || "{}");
+  const cashierName = session.cashierName || "User";
+  const store = session.store || "Unknown Store";
 
-  // -----------------------------------------------------------
-  // Load saved settings
-  // -----------------------------------------------------------
-  useEffect(() => {
-    const savedStore = (localStorage.getItem("store") as StoreName) || "";
-    const savedName = localStorage.getItem("submittedBy") || "";
-
-    if (savedStore) setStore(savedStore);
-    if (savedName) setCashierName(savedName);
-  }, []);
-
-  // -----------------------------------------------------------
-  // Save settings to localStorage
-  // -----------------------------------------------------------
-  function handleSave(): void {
-    if (!store) {
-      alert("Please select a store.");
-      return;
-    }
-
-    const cleanedName = cashierName.trim();
-    if (!cleanedName) {
-      alert("Please enter your name.");
-      return;
-    }
-
-    localStorage.setItem("store", store);
-    localStorage.setItem("submittedBy", cleanedName);
-
-    alert("Settings saved successfully!");
-  }
+  const handleLogout = () => {
+    localStorage.clear();
+    navigate("/login");
+  };
 
   return (
-    <Layout>
+    <Layout cashierName={cashierName} onLogout={handleLogout}>
       <div className="max-w-xl mx-auto mt-10 bg-white shadow p-6 rounded-lg">
-        <h1 className="text-2xl font-semibold text-gray-800 mb-4">Settings</h1>
+        <h1 className="text-2xl font-semibold text-gray-800 mb-4">
+          Profile Settings
+        </h1>
 
-        <div className="space-y-4">
-          {/* Store Selection */}
+        <div className="space-y-6">
+          {/* Store */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Store
             </label>
-            <select
+            <input
+              type="text"
               value={store}
-              onChange={(e) => setStore(e.target.value as StoreName)}
-              className="w-full border rounded px-3 py-2"
-            >
-              <option value="">Select Store</option>
-              {STORE_NAMES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+              disabled
+              className="w-full border rounded px-3 py-2 bg-gray-100 text-gray-600 cursor-not-allowed"
+            />
           </div>
 
           {/* Cashier Name */}
@@ -78,18 +44,17 @@ export default function SettingsPage() {
             <input
               type="text"
               value={cashierName}
-              onChange={(e) => setCashierName(e.target.value)}
-              className="w-full border rounded px-3 py-2"
-              placeholder="Enter your name"
+              disabled
+              className="w-full border rounded px-3 py-2 bg-gray-100 text-gray-600 cursor-not-allowed"
             />
           </div>
 
-          {/* Save Button */}
+          {/* Logout Button */}
           <button
-            onClick={handleSave}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2 rounded-md"
+            onClick={handleLogout}
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-medium py-2 rounded-md"
           >
-            Save Settings
+            Logout
           </button>
         </div>
       </div>
