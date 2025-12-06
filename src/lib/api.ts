@@ -1,5 +1,5 @@
 // -------------------------------------------------------------
-// lib/api.ts — Production-Ready API Client (Updated)
+// lib/api.ts — Clean, Organized, Production-Ready API Client
 // -------------------------------------------------------------
 
 export const BACKEND_URL: string =
@@ -8,13 +8,22 @@ export const BACKEND_URL: string =
 console.log("🟢 Using backend URL:", BACKEND_URL);
 
 // -------------------------------------------------------------
-// Types
+// TYPES
 // -------------------------------------------------------------
-export interface Cashier {
-  cashier_id: string;
+
+export interface StoreRef {
+  id: string;
   name: string;
-  store: string;
-  store_normalized: string;
+}
+
+export interface User {
+  user_id: string;
+  name: string;
+  pin?: string; // Only in /auth/users, never returned on login
+  role: "cashier" | "manager" | "admin";
+  active: boolean;
+  store: StoreRef | null;
+  store_access: StoreRef[];
 }
 
 export interface AirtableFields {
@@ -41,8 +50,9 @@ export interface DailySummaryResponse {
 }
 
 // -------------------------------------------------------------
-// Shared fetch helper
+// SHARED FETCH HELPER
 // -------------------------------------------------------------
+
 async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
   console.log("🌐 API →", options.method || "GET", url);
 
@@ -57,45 +67,123 @@ async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T>
   if (!res.ok) {
     const text = await res.text();
     console.error("❌ API Error:", text);
-    throw new Error(text || `Request failed with ${res.status}`);
+    throw new Error(text || `Request failed with status ${res.status}`);
   }
 
   return (await res.json()) as T;
 }
 
 // -------------------------------------------------------------
-// 🟩 NEW: Fetch Cashiers (matches backend endpoint /auth/cashiers)
+// AUTH / USERS
 // -------------------------------------------------------------
-export async function fetchCashiers(): Promise<Cashier[]> {
-  const url = `${BACKEND_URL}/auth/cashiers`;
-  return apiRequest<Cashier[]>(url);
+
+// Fetch list of active users
+export async function fetchUsers(): Promise<User[]> {
+  const url = `${BACKEND_URL}/auth/users`;
+  return apiRequest<User[]>(url);
+}
+
+// Login user & validate PIN
+export async function loginUser(user_id: string, pin: string) {
+  const url = `${BACKEND_URL}/auth/user-login`;
+  return apiRequest(url, {
+    method: "POST",
+    body: JSON.stringify({ user_id, pin }),
+  });
 }
 
 // -------------------------------------------------------------
-// GET: closing records
+// ADMIN — USER MANAGEMENT
 // -------------------------------------------------------------
-export async function fetchClosings(businessDate: string): Promise<ClosingsResponse> {
-  const url = `${BACKEND_URL}/closings?business_date=${encodeURIComponent(businessDate)}`;
-  return apiRequest<ClosingsResponse>(url);
+
+// ⭐ CREATE USER (newly added)
+export async function createUser(payload: any) {
+  const url = `${BACKEND_URL}/admin/users`;
+  return apiRequest(url, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// Update an existing user
+export async function updateUser(user_id: string, payload: any) {
+  const url = `${BACKEND_URL}/admin/users/${user_id}`;
+  return apiRequest(url, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 // -------------------------------------------------------------
-// GET: daily summary
+// STORES
 // -------------------------------------------------------------
-export async function fetchDailySummary(
-  businessDate: string
-): Promise<DailySummaryResponse> {
-  const url = `${BACKEND_URL}/reports/daily-summary?business_date=${encodeURIComponent(
+export async function fetchStores() {
+  const url = `${BACKEND_URL}/stores`;
+  return apiRequest<{ id: string; name: string }[]>(url);
+}
+
+// -------------------------------------------------------------
+// DAILY CLOSINGS (Cashier + Dashboard)
+// -------------------------------------------------------------
+
+// Multi-store fetch (Dashboard)
+export async function fetchClosings(
+  businessDate: string,
+  storeId?: string
+): Promise<ClosingsResponse> {
+  let url = `${BACKEND_URL}/closings?business_date=${encodeURIComponent(
     businessDate
   )}`;
 
-  return apiRequest<DailySummaryResponse>(url);
+  if (storeId) {
+    url += `&store_id=${encodeURIComponent(storeId)}`;
+  }
+
+  return apiRequest<ClosingsResponse>(url);
 }
 
-// -------------------------------------------------------------
-// POST: verify record
-// -------------------------------------------------------------
-export async function verifyRecord(record_id: string, status: string, verified_by: string) {
+// Fetch unique closing record (store_id + date)
+export async function fetchUniqueClosing(
+  businessDate: string,
+  storeId: string
+): Promise<ClosingsResponse> {
+  const url = `${BACKEND_URL}/closings/unique?business_date=${encodeURIComponent(
+    businessDate
+  )}&store_id=${encodeURIComponent(storeId)}`;
+
+  return apiRequest<ClosingsResponse>(url);
+}
+
+// Create/update a closing record
+export async function saveClosing(payload: any) {
+  const url = `${BACKEND_URL}/closings`;
+
+  return apiRequest(url, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+// Inline field update (Dashboard)
+export async function updateField(
+  recordId: string,
+  fieldName: string,
+  newValue: number
+) {
+  const url = `${BACKEND_URL}/closings/${recordId}`;
+
+  return apiRequest(url, {
+    method: "PATCH",
+    body: JSON.stringify({ [fieldName]: newValue }),
+  });
+}
+
+// Verify record (manager/admin)
+export async function verifyRecord(
+  record_id: string,
+  status: string,
+  verified_by: string
+) {
   const url = `${BACKEND_URL}/verify`;
 
   return apiRequest(url, {
@@ -105,13 +193,15 @@ export async function verifyRecord(record_id: string, status: string, verified_b
 }
 
 // -------------------------------------------------------------
-// PATCH: update single field
+// REPORTING
 // -------------------------------------------------------------
-export async function updateField(recordId: string, fieldName: string, newValue: number) {
-  const url = `${BACKEND_URL}/closings/${recordId}`;
 
-  return apiRequest(url, {
-    method: "PATCH",
-    body: JSON.stringify({ [fieldName]: newValue }),
-  });
+export async function fetchDailySummary(
+  businessDate: string
+): Promise<DailySummaryResponse> {
+  const url = `${BACKEND_URL}/reports/daily-summary?business_date=${encodeURIComponent(
+    businessDate
+  )}`;
+
+  return apiRequest<DailySummaryResponse>(url);
 }

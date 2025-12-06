@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import toast, { Toaster } from "react-hot-toast";
-import { BACKEND_URL } from "@/lib/api";
+import { useNavigate } from "react-router-dom";
 
-import Layout from "../components/Layout";                 // ⭐ NEW
-import { useNavigate } from "react-router-dom"; // ⭐ NEW
+import Layout from "../components/Layout";
+import { fetchUniqueClosing, saveClosing } from "@/lib/api";
+import { BACKEND_URL } from "@/lib/api";
 
 console.log("🟢 Using backend URL:", BACKEND_URL);
 
@@ -45,28 +46,23 @@ const numericFields: (keyof FormState)[] = [
 ];
 
 const CashierForm: React.FC = () => {
-  console.log("🧾 CashierForm v7 (iPad UI) loaded");
+  console.log("🧾 CashierForm v9 (store_id stable) loaded");
 
-  // ⭐ NEW — navigation + logout
+  // ----------------------------------------------------
+  // ⭐ SESSION — NEW SYSTEM
+  // ----------------------------------------------------
+  const session = JSON.parse(localStorage.getItem("session") || "{}");
+
+  const userName: string = session.name || "Cashier";
+  const storeId: string = session.storeId || null;
+  const storeName: string = session.storeName || "Unknown Store";
+  const submittedBy: string = userName;
+
   const navigate = useNavigate();
-
   const handleLogout = () => {
     localStorage.clear();
     navigate("/login");
   };
-
-  // ⭐ NEW — load cashierName for Layout header
-  const session = JSON.parse(localStorage.getItem("cashierSession") || "{}");
-  const cashierName = session.cashierName || "Cashier";
-
-  // Existing code preserved 100%
-  const store =
-    (typeof window !== "undefined" && localStorage.getItem("store")) ||
-    "Unknown Store";
-
-  const submittedBy =
-    (typeof window !== "undefined" && localStorage.getItem("submittedBy")) ||
-    `${store} Cashier`;
 
   // ----------------------------------------------------
   // State
@@ -91,10 +87,7 @@ const CashierForm: React.FC = () => {
     cashFloat: "",
   });
 
-  const [formErrors, setFormErrors] = useState<
-    Partial<Record<keyof FormState, string>>
-  >({});
-
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [recordId, setRecordId] = useState<string | null>(null);
   const [isLocked, setIsLocked] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -117,7 +110,7 @@ const CashierForm: React.FC = () => {
     const cash = Number(form.cashPayments) || 0;
     const floatAmt = Number(form.cashFloat) || 0;
     return actual - cash - floatAmt;
-  }, [form.actualCashCounted, form.cashPayments, form.cashFloat]);
+  }, [form]);
 
   const totalBudgets = useMemo(() => {
     const k = Number(form.kitchenBudget) || 0;
@@ -125,25 +118,17 @@ const CashierForm: React.FC = () => {
     const n = Number(form.nonFoodBudget) || 0;
     const s = Number(form.staffMealBudget) || 0;
     return k + b + n + s;
-  }, [
-    form.kitchenBudget,
-    form.barBudget,
-    form.nonFoodBudget,
-    form.staffMealBudget,
-  ]);
+  }, [form]);
 
   const rawCashForDeposit = useMemo(() => {
     const actual = Number(form.actualCashCounted) || 0;
     const floatAmt = Number(form.cashFloat) || 0;
     return actual - floatAmt - totalBudgets;
-  }, [form.actualCashCounted, form.cashFloat, totalBudgets]);
+  }, [form, totalBudgets]);
 
-  const cashForDeposit = rawCashForDeposit < 0 ? 0 : rawCashForDeposit;
+  const cashForDeposit = Math.max(0, rawCashForDeposit);
   const transferNeeded = rawCashForDeposit < 0 ? Math.abs(rawCashForDeposit) : 0;
 
-  // ----------------------------------------------------
-  // Required fields check
-  // ----------------------------------------------------
   const isFormValid = numericFields.every((field) => {
     const v = form[field];
     return v !== "" && v !== null && v !== undefined;
@@ -155,34 +140,12 @@ const CashierForm: React.FC = () => {
   const handleChange = (field: keyof FormState, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
 
-    setFormErrors((prev) => {
-      if (!prev[field]) return prev;
-      const next = { ...prev };
+    if (formErrors[field]) {
+      const next = { ...formErrors };
       delete next[field];
-      return next;
-    });
-  };
-  // ----------------------------------------------------
-  // Helper: retry fetch
-  // ----------------------------------------------------
-  async function fetchWithRetry(
-    url: string | URL,
-    options: RequestInit = {},
-    retries = 2,
-    abortSignal?: AbortSignal
-  ): Promise<Response> {
-    try {
-      const res = await fetch(url, { ...options, signal: abortSignal });
-      if (!res.ok) throw new Error(await res.text());
-      return res;
-    } catch (err: any) {
-      if (abortSignal?.aborted) throw err;
-      if (retries > 0) {
-        return await fetchWithRetry(url, options, retries - 1, abortSignal);
-      }
-      throw err;
+      setFormErrors(next);
     }
-  }
+  };
 
   // ----------------------------------------------------
   // Map Airtable → Form fields
@@ -215,10 +178,10 @@ const CashierForm: React.FC = () => {
   }
 
   // ----------------------------------------------------
-  // Fetch existing record
+  // FETCH EXISTING — store_id aware
   // ----------------------------------------------------
   async function fetchExisting(showToast = false): Promise<void> {
-    if (!selectedDate) return;
+    if (!selectedDate || !storeId) return;
 
     if (lastFetchAbort.current) lastFetchAbort.current.abort();
     const controller = new AbortController();
@@ -227,19 +190,13 @@ const CashierForm: React.FC = () => {
     setLoading(true);
 
     try {
-      const url = new URL(`${BACKEND_URL}/closings/unique`);
-      url.searchParams.set("business_date", selectedDate);
-      url.searchParams.set("store", store);
-
-      const res = await fetchWithRetry(url, {}, 2, controller.signal);
-      const data = await res.json();
-
-      setFormErrors({});
+      const data = await fetchUniqueClosing(selectedDate, storeId);
 
       if (data.status === "empty") {
         setRecordId(null);
         setIsLocked(false);
         setForm({
+          ...form,
           date: selectedDate,
           totalSales: "",
           netSales: "",
@@ -257,48 +214,46 @@ const CashierForm: React.FC = () => {
           actualCashCounted: "",
           cashFloat: "",
         });
-
         if (showToast) toast("No record found — starting fresh.");
         return;
       }
 
+      setRecordId(data.id);
       const f = data.fields || {};
       const lockStatus = (f["Lock Status"] || "").trim();
-
-      setRecordId(data.id);
       setIsLocked(lockStatus.toLowerCase() === "locked");
       setForm(mapFields(f));
 
-      if (showToast)
-        toast.success(`Record loaded (${lockStatus || "Unlocked"})`);
-    } catch (e: any) {
-      if (e?.name !== "AbortError") toast.error("Error fetching record.");
+      if (showToast) toast.success(`Record loaded (${lockStatus || "Unlocked"})`);
+    } catch (err) {
+      console.error(err);
+      toast.error("Error fetching record.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (!selectedDate) return;
-    void fetchExisting(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDate, store]);
+    if (selectedDate && storeId) fetchExisting(true);
+  }, [selectedDate, storeId]);
 
   // ----------------------------------------------------
   // SAVE
   // ----------------------------------------------------
   const handleSave = async () => {
+    if (!storeId) {
+      toast.error("Missing store ID — please log in again.");
+      return;
+    }
+
     if (isLocked) {
       toast.error("This record is locked.");
       return;
     }
 
-    // Required fields check
     const newErrors: Partial<Record<keyof FormState, string>> = {};
-    numericFields.forEach((field) => {
-      if (form[field] === "" || form[field] === null) {
-        newErrors[field] = "Required";
-      }
+    numericFields.forEach((f) => {
+      if (form[f] === "" || form[f] === null) newErrors[f] = "Required";
     });
 
     if (Object.keys(newErrors).length > 0) {
@@ -321,7 +276,9 @@ const CashierForm: React.FC = () => {
 
       const payload = {
         business_date: selectedDate,
-        store,
+        store_id: storeId,
+        store_name: storeName,
+
         total_sales: Number(form.totalSales),
         net_sales: Number(form.netSales),
         cash_payments: Number(form.cashPayments),
@@ -331,32 +288,29 @@ const CashierForm: React.FC = () => {
         voucher_payments: Number(form.voucherPayments),
         bank_transfer_payments: Number(form.bankTransferPayments),
         marketing_expenses: Number(form.marketingExpenses),
+
         kitchen_budget: Number(form.kitchenBudget),
         bar_budget: Number(form.barBudget),
         non_food_budget: Number(form.nonFoodBudget),
         staff_meal_budget: Number(form.staffMealBudget),
+
         actual_cash_counted: Number(form.actualCashCounted),
         cash_float: Number(form.cashFloat),
         variance_cash: Number(variance),
         total_budgets: Number(totalBudgets),
         cash_for_deposit: Number(cashForDeposit),
         transfer_needed: Number(transferNeeded),
+
         submitted_by: submittedBy,
       };
 
-      const res = await fetch(`${BACKEND_URL}/closings`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const data = await saveClosing(payload);
 
-      if (!res.ok) throw new Error(await res.text());
-
-      const data = await res.json();
       toast.success(data.action === "created" ? "Record created!" : "Updated!");
 
       setIsLocked(String(data.lock_status).toLowerCase() === "locked");
-      await fetchExisting(false);
+
+      fetchExisting(false);
     } catch (err) {
       console.error(err);
       toast.error("Save failed.");
@@ -366,7 +320,7 @@ const CashierForm: React.FC = () => {
   };
 
   // ----------------------------------------------------
-  // Unlock (Manager)
+  // ⭐ MANAGER UNLOCK ACTIONS (restored)
   // ----------------------------------------------------
   const openUnlockModal = () => {
     if (!recordId) {
@@ -375,6 +329,11 @@ const CashierForm: React.FC = () => {
     }
     setManagerPin("");
     setShowUnlockModal(true);
+  };
+
+  const handleCancelUnlock = () => {
+    setManagerPin("");
+    setShowUnlockModal(false);
   };
 
   const handleConfirmUnlock = async () => {
@@ -396,16 +355,12 @@ const CashierForm: React.FC = () => {
       toast.success("Unlocked!");
       setIsLocked(false);
       setShowUnlockModal(false);
-      await fetchExisting(true);
+
+      fetchExisting(true);
     } catch (err) {
       console.error(err);
       toast.error("Invalid PIN");
     }
-  };
-
-  const handleCancelUnlock = () => {
-    setShowUnlockModal(false);
-    setManagerPin("");
   };
 
   // ----------------------------------------------------
@@ -414,314 +369,304 @@ const CashierForm: React.FC = () => {
   const inputBase =
     "w-full px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50 text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow shadow-sm";
 
-  const inputDisabled = "bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200";
+  const inputDisabled =
+    "bg-gray-100 text-gray-500 cursor-not-allowed border-gray-200";
 
   const sectionCard =
     "rounded-2xl bg-white shadow-md p-5 md:p-6 space-y-4 border border-gray-100";
 
-    // =====================================================
-    // RENDER — wrapped in Layout (Option C)
-    // =====================================================
-    return (
-      <Layout cashierName={cashierName} onLogout={handleLogout}>
-        <div className="min-h-screen bg-[#F5F5F7] px-3 py-4 md:px-6 md:py-8 flex justify-center">
-          <Toaster position="top-center" />
+  // =====================================================
+  // RENDER
+  // =====================================================
+  return (
+    <Layout cashierName={userName} onLogout={handleLogout}>
+      <div className="min-h-screen bg-[#F5F5F7] px-3 py-4 md:px-6 md:py-8 flex justify-center">
+        <Toaster position="top-center" />
 
-          <div className="w-full max-w-3xl flex flex-col">
-            {/* HEADER / APP BAR */}
-            <header className="mb-4 md:mb-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h1 className="text-[20px] md:text-[24px] font-semibold text-gray-900">
-                    Daily Closing Form — {store}
-                  </h1>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Complete the end-of-day report for the selected business date.
-                  </p>
-                </div>
-
-                {/* Date + Lock badge */}
-                <div className="flex flex-col items-end gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs md:text-sm text-gray-500">
-                      Business Date:
-                    </span>
-                    <input
-                      type="date"
-                      value={selectedDate}
-                      onChange={(e) => {
-                        const d = e.target.value;
-                        setSelectedDate(d);
-                        setForm((prev) => ({ ...prev, date: d }));
-                        setFormErrors({});
-                      }}
-                      className="px-3 py-2 rounded-xl border border-gray-300 bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  {selectedDate && (
-                    <span
-                      className={
-                        "inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium " +
-                        (isLocked
-                          ? "bg-yellow-100 text-yellow-800"
-                          : "bg-green-100 text-green-800")
-                      }
-                    >
-                      {isLocked ? "Locked" : "Unlocked"}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {selectedDate && isLocked && (
-                <div className="mt-3 px-4 py-2 rounded-2xl bg-yellow-50 text-yellow-800 text-sm flex items-center gap-2 border border-yellow-100">
-                  <span>🔒</span>
-                  <span>This record is locked. Unlock to edit.</span>
-                </div>
-              )}
-            </header>
-
-            {/* NO DATE SELECTED */}
-            {!selectedDate && (
-              <div className="flex-1 flex items-center justify-center">
-                <p className="text-center text-gray-500 italic text-sm md:text-base">
-                  Please choose a business date to start today&apos;s closing.
+        <div className="w-full max-w-3xl flex flex-col">
+          {/* Header */}
+          <header className="mb-4 md:mb-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <h1 className="text-[20px] md:text-[24px] font-semibold text-gray-900">
+                  Daily Closing Form — {storeName}
+                </h1>
+                <p className="text-sm text-gray-500 mt-1">
+                  Complete the end-of-day report for the selected business date.
                 </p>
               </div>
-            )}
 
-            {/* LOADING */}
-            {selectedDate && loading && (
-              <div className="flex-1 flex items-center justify-center">
-                <p className="text-center text-gray-500 text-sm md:text-base">
-                  Loading record…
-                </p>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs md:text-sm text-gray-500">
+                    Business Date:
+                  </span>
+                  <input
+                    type="date"
+                    value={selectedDate}
+                    onChange={(e) => {
+                      const d = e.target.value;
+                      setSelectedDate(d);
+                      setForm((p) => ({ ...p, date: d }));
+                      setFormErrors({});
+                    }}
+                    className="px-3 py-2 rounded-xl border border-gray-300 bg-white text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                {selectedDate && (
+                  <span
+                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
+                      isLocked
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-green-100 text-green-800"
+                    }`}
+                  >
+                    {isLocked ? "Locked" : "Unlocked"}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {selectedDate && isLocked && (
+              <div className="mt-3 px-4 py-2 rounded-2xl bg-yellow-50 text-yellow-800 text-sm flex items-center gap-2 border border-yellow-100">
+                <span>🔒</span>
+                <span>This record is locked. Unlock to edit.</span>
               </div>
             )}
+          </header>
 
-            {/* FORM CONTENT */}
-            {selectedDate && !loading && (
-              <div className="flex-1 pb-28 space-y-5 md:space-y-6">
-                {/* SALES */}
-                <section className={sectionCard}>
-                  <h2 className="text-sm font-semibold text-gray-700 text-center tracking-wide uppercase">
-                    Sales Inputs
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-                    {([
-                      ["Total Sales", "totalSales"],
-                      ["Net Sales", "netSales"],
-                      ["Cash Payments", "cashPayments"],
-                      ["Card Payments", "cardPayments"],
-                      ["Digital Payments", "digitalPayments"],
-                      ["Grab Payments", "grabPayments"],
-                      ["Voucher Payments", "voucherPayments"],
-                      ["Bank Transfer Payments", "bankTransferPayments"],
-                      ["Marketing Expense (recorded as sale)", "marketingExpenses"],
-                    ] as const).map(([label, field]) => (
-                      <div key={field} className="space-y-1.5">
-                        <label className="block text-xs font-medium text-gray-600">
-                          {label}
-                        </label>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={form[field]}
-                          disabled={isLocked}
-                          onChange={(e) => handleChange(field, e.target.value)}
-                          className={`${inputBase} ${
-                            isLocked ? inputDisabled : ""
-                          }`}
-                        />
-                        {formErrors[field] && (
-                          <p className="text-xs text-red-500">
-                            {formErrors[field]}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
+          {/* No date */}
+          {!selectedDate && (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-center text-gray-500 italic text-sm md:text-base">
+                Please choose a business date to start today's closing.
+              </p>
+            </div>
+          )}
 
-                {/* BUDGETS */}
-                <section className={sectionCard}>
-                  <h2 className="text-sm font-semibold text-gray-700 text-center tracking-wide uppercase">
-                    Requested Budgets
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-                    {([
-                      ["Kitchen Budget", "kitchenBudget"],
-                      ["Bar Budget", "barBudget"],
-                      ["Non-Food Budget", "nonFoodBudget"],
-                      ["Staff Meal Budget", "staffMealBudget"],
-                    ] as const).map(([label, field]) => (
-                      <div key={field} className="space-y-1.5">
-                        <label className="block text-xs font-medium text-gray-600">
-                          {label}
-                        </label>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={form[field]}
-                          disabled={isLocked}
-                          onChange={(e) => handleChange(field, e.target.value)}
-                          className={`${inputBase} ${
-                            isLocked ? inputDisabled : ""
-                          }`}
-                        />
-                        {formErrors[field] && (
-                          <p className="text-xs text-red-500">
-                            {formErrors[field]}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
+          {/* Loading */}
+          {selectedDate && loading && (
+            <div className="flex-1 flex items-center justify-center">
+              <p className="text-center text-gray-500 text-sm md:text-base">
+                Loading record…
+              </p>
+            </div>
+          )}
 
-                {/* CASH COUNT */}
-                <section className={sectionCard}>
-                  <h2 className="text-sm font-semibold text-gray-700 text-center tracking-wide uppercase">
-                    Cash Count Inputs
-                  </h2>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
-                    {([
-                      ["Actual Cash Counted", "actualCashCounted"],
-                      ["Cash Float", "cashFloat"],
-                    ] as const).map(([label, field]) => (
-                      <div key={field} className="space-y-1.5">
-                        <label className="block text-xs font-medium text-gray-600">
-                          {label}
-                        </label>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          value={form[field]}
-                          disabled={isLocked}
-                          onChange={(e) => handleChange(field, e.target.value)}
-                          className={`${inputBase} ${
-                            isLocked ? inputDisabled : ""
-                          }`}
-                        />
-                        {formErrors[field] && (
-                          <p className="text-xs text-red-500">
-                            {formErrors[field]}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </section>
+          {/* Form */}
+          {selectedDate && !loading && (
+            <div className="flex-1 pb-28 space-y-5 md:space-y-6">
+              {/* SALES */}
+              <section className={sectionCard}>
+                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase tracking-wide">
+                  Sales Inputs
+                </h2>
 
-                {/* SUMMARY */}
-                <section className={sectionCard}>
-                  <h2 className="text-sm font-semibold text-gray-700 text-center tracking-wide uppercase">
-                    Summary
-                  </h2>
-                  <div className="grid grid-cols-2 gap-y-2 text-sm">
-                    <div className="text-gray-500">Variance:</div>
-                    <div className="text-right font-medium">{peso(variance)}</div>
-
-                    <div className="text-gray-500">Total Budgets:</div>
-                    <div className="text-right font-medium">{peso(totalBudgets)}</div>
-
-                    <div className="text-gray-500">Cash for Deposit:</div>
-                    <div className="text-right font-medium">{peso(cashForDeposit)}</div>
-
-                    <div className="text-gray-500">Transfer Needed:</div>
-                    <div className="text-right font-medium text-red-600">
-                      {transferNeeded > 0 ? peso(transferNeeded) : "₱0"}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                  {([
+                    ["Total Sales", "totalSales"],
+                    ["Net Sales", "netSales"],
+                    ["Cash Payments", "cashPayments"],
+                    ["Card Payments", "cardPayments"],
+                    ["Digital Payments", "digitalPayments"],
+                    ["Grab Payments", "grabPayments"],
+                    ["Voucher Payments", "voucherPayments"],
+                    ["Bank Transfer Payments", "bankTransferPayments"],
+                    ["Marketing Expense (recorded as sale)", "marketingExpenses"],
+                  ] as const).map(([label, field]) => (
+                    <div key={field} className="space-y-1.5">
+                      <label className="block text-xs font-medium text-gray-600">
+                        {label}
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        disabled={isLocked}
+                        value={form[field]}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        className={`${inputBase} ${isLocked ? inputDisabled : ""}`}
+                      />
+                      {formErrors[field] && (
+                        <p className="text-xs text-red-500">{formErrors[field]}</p>
+                      )}
                     </div>
-                  </div>
-                </section>
-              </div>
-            )}
+                  ))}
+                </div>
+              </section>
 
-            {/* STICKY FOOTER BAR */}
-            {selectedDate && !loading && (
-              <div className="fixed inset-x-0 bottom-0 bg-white/95 border-t border-gray-200 backdrop-blur-sm">
-                <div className="max-w-3xl mx-auto px-4 py-3 md:py-4 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
-                  <p className="text-xs md:text-sm text-gray-500">
-                    Submitted by: <span className="font-medium">{submittedBy}</span>
-                  </p>
+              {/* BUDGETS */}
+              <section className={sectionCard}>
+                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase tracking-wide">
+                  Requested Budgets
+                </h2>
 
-                  <div className="flex items-center gap-3">
-                    {isLocked && (
-                      <button
-                        type="button"
-                        onClick={openUnlockModal}
-                        className="px-3 py-2 rounded-full border border-gray-300 text-xs md:text-sm text-gray-700 bg-gray-50 hover:bg-gray-100 transition-colors"
-                      >
-                        Unlock (Manager)
-                      </button>
-                    )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                  {([
+                    ["Kitchen Budget", "kitchenBudget"],
+                    ["Bar Budget", "barBudget"],
+                    ["Non-Food Budget", "nonFoodBudget"],
+                    ["Staff Meal Budget", "staffMealBudget"],
+                  ] as const).map(([label, field]) => (
+                    <div key={field} className="space-y-1.5">
+                      <label className="block text-xs font-medium text-gray-600">
+                        {label}
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        disabled={isLocked}
+                        value={form[field]}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        className={`${inputBase} ${isLocked ? inputDisabled : ""}`}
+                      />
+                      {formErrors[field] && (
+                        <p className="text-xs text-red-500">{formErrors[field]}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
 
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      disabled={isSaving || !isFormValid || isLocked}
-                      className={`w-full md:w-auto px-6 py-3 rounded-full text-sm font-semibold text-white transition-colors shadow-md ${
-                        isLocked || !isFormValid || isSaving
-                          ? "bg-gray-300 cursor-not-allowed"
-                          : "bg-blue-600 hover:bg-blue-700"
-                      }`}
-                    >
-                      {isLocked ? "Locked" : isSaving ? "Saving…" : "Save Daily Closing"}
-                    </button>
+              {/* CASH COUNT */}
+              <section className={sectionCard}>
+                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase tracking-wide">
+                  Cash Count Inputs
+                </h2>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-5">
+                  {([
+                    ["Actual Cash Counted", "actualCashCounted"],
+                    ["Cash Float", "cashFloat"],
+                  ] as const).map(([label, field]) => (
+                    <div key={field} className="space-y-1.5">
+                      <label className="block text-xs font-medium text-gray-600">
+                        {label}
+                      </label>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        disabled={isLocked}
+                        value={form[field]}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        className={`${inputBase} ${isLocked ? inputDisabled : ""}`}
+                      />
+                      {formErrors[field] && (
+                        <p className="text-xs text-red-500">{formErrors[field]}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* SUMMARY */}
+              <section className={sectionCard}>
+                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase tracking-wide">
+                  Summary
+                </h2>
+
+                <div className="grid grid-cols-2 gap-y-2 text-sm">
+                  <div className="text-gray-500">Variance:</div>
+                  <div className="text-right font-medium">{peso(variance)}</div>
+
+                  <div className="text-gray-500">Total Budgets:</div>
+                  <div className="text-right font-medium">{peso(totalBudgets)}</div>
+
+                  <div className="text-gray-500">Cash for Deposit:</div>
+                  <div className="text-right font-medium">{peso(cashForDeposit)}</div>
+
+                  <div className="text-gray-500">Transfer Needed:</div>
+                  <div className="text-right font-medium text-red-600">
+                    {transferNeeded > 0 ? peso(transferNeeded) : "₱0"}
                   </div>
                 </div>
-              </div>
-            )}
+              </section>
+            </div>
+          )}
 
-            {/* MANAGER UNLOCK MODAL */}
-            {showUnlockModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-                <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6 space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Manager Unlock</h3>
-                  <p className="text-sm text-gray-500">
-                    Enter the 4-digit manager PIN to unlock this record for editing.
-                  </p>
+          {/* FOOTER */}
+          {selectedDate && !loading && (
+            <div className="fixed inset-x-0 bottom-0 bg-white/95 border-t border-gray-200 backdrop-blur-sm">
+              <div className="max-w-3xl mx-auto px-4 py-3 md:py-4 flex flex-col md:flex-row items-center justify-between gap-2 md:gap-4">
+                <p className="text-xs md:text-sm text-gray-500">
+                  Submitted by: <span className="font-medium">{submittedBy}</span>
+                </p>
 
-                  <div className="space-y-2">
-                    <label className="block text-xs font-medium text-gray-600">
-                      Manager PIN
-                    </label>
-                    <input
-                      type="password"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={managerPin}
-                      onChange={(e) =>
-                        setManagerPin(e.target.value.replace(/\D/g, ""))
-                      }
-                      className="w-full px-4 py-3 rounded-2xl border border-gray-300 bg-gray-50 text-center tracking-[0.4em] text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex justify-end gap-2 pt-2">
+                <div className="flex items-center gap-3">
+                  {isLocked && (
                     <button
                       type="button"
-                      onClick={handleCancelUnlock}
-                      className="px-4 py-2 rounded-full text-sm border border-gray-300 text-gray-700 bg-white hover:bg-gray-50"
+                      onClick={openUnlockModal}
+                      className="px-3 py-2 rounded-full border border-gray-300 text-xs md:text-sm text-gray-700 bg-gray-50 hover:bg-gray-100"
                     >
-                      Cancel
+                      Unlock (Manager)
                     </button>
-                    <button
-                      type="button"
-                      onClick={handleConfirmUnlock}
-                      className="px-5 py-2 rounded-full text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700"
-                    >
-                      Unlock
-                    </button>
-                  </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={isSaving || !isFormValid || isLocked}
+                    className={`w-full md:w-auto px-6 py-3 rounded-full text-sm font-semibold text-white shadow-md ${
+                      isLocked || !isFormValid || isSaving
+                        ? "bg-gray-300 cursor-not-allowed"
+                        : "bg-blue-600 hover:bg-blue-700"
+                    }`}
+                  >
+                    {isLocked ? "Locked" : isSaving ? "Saving…" : "Save Daily Closing"}
+                  </button>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* MANAGER UNLOCK MODAL */}
+          {showUnlockModal && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-sm rounded-2xl bg-white shadow-xl p-6 space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">Manager Unlock</h3>
+                <p className="text-sm text-gray-500">
+                  Enter the 4-digit manager PIN to unlock this record for editing.
+                </p>
+
+                <div className="space-y-2">
+                  <label className="block text-xs font-medium text-gray-600">
+                    Manager PIN
+                  </label>
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={managerPin}
+                    onChange={(e) => setManagerPin(e.target.value.replace(/\D/g, ""))}
+                    className="w-full px-4 py-3 rounded-2xl border border-gray-300 bg-gray-50 text-center tracking-[0.4em] text-lg font-semibold"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={handleCancelUnlock}
+                    className="px-4 py-2 rounded-full text-sm border border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleConfirmUnlock}
+                    className="px-5 py-2 rounded-full text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700"
+                  >
+                    Unlock
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      </Layout>
-    );
-  };
+      </div>
+    </Layout>
+  );
+};
 
-  export default CashierForm;
+export default CashierForm;

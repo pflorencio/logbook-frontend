@@ -1,6 +1,12 @@
 // src/App.tsx
 import React from "react";
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -17,6 +23,34 @@ import AdminUsers from "./pages/admin/users";
 import AdminReports from "./pages/admin/reports";
 import AdminSettings from "./pages/admin/settings";
 
+
+// -------------------------------------------------------
+// ⭐ NEW: SmartRedirect component
+// Redirects user to correct home depending on role
+// -------------------------------------------------------
+function SmartRedirect() {
+  const sessionRaw = localStorage.getItem("session");
+
+  if (!sessionRaw) return <Navigate to="/login" replace />;
+
+  let session: any = {};
+  try {
+    session = JSON.parse(sessionRaw);
+  } catch {
+    return <Navigate to="/login" replace />;
+  }
+
+  const role = session.role;
+
+  if (role === "admin" || role === "manager") return <Navigate to="/admin" replace />;
+  return <Navigate to="/cashier" replace />;
+}
+
+
+
+// -------------------------------------------------------
+// APP ROUTER
+// -------------------------------------------------------
 export default function App() {
   return (
     <Router>
@@ -26,16 +60,17 @@ export default function App() {
           {/* ---------- PUBLIC ROUTES ---------- */}
           <Route path="/login" element={<Login />} />
 
-          {/* ---------- CASHIER / DEFAULT ROUTES ---------- */}
+          {/* ---------- DEFAULT ROUTE ---------- */}
           <Route
             path="/"
             element={
               <ProtectedRoute roles={["cashier", "manager", "admin"]}>
-                <HomePage />
+                <SmartRedirect />
               </ProtectedRoute>
             }
           />
 
+          {/* ---------- CASHIER ROUTES ---------- */}
           <Route
             path="/cashier"
             element={
@@ -100,8 +135,8 @@ export default function App() {
             }
           />
 
-          {/* ---------- OPTIONAL: 404 ---------- */}
-          {/* <Route path="*" element={<NotFound />} /> */}
+          {/* ---------- FALLBACK ---------- */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
     </Router>

@@ -3,15 +3,19 @@ import { Navigate } from "react-router-dom";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  roles?: string[]; // ⭐ NEW: optional role-based access
+  roles?: string[]; // optional role-based access
 }
 
 export default function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
-  const sessionRaw = localStorage.getItem("cashierSession");
+  // ⭐ Using new universal session format
+  const sessionRaw = localStorage.getItem("session");
   const token = localStorage.getItem("token");
 
-  // If no session or token → not authenticated
+  // ----------------------------------------------
+  // AUTH CHECK
+  // ----------------------------------------------
   if (!sessionRaw || !token) {
+    console.warn("⛔ No session or token → redirecting to login.");
     localStorage.clear();
     return <Navigate to="/login" replace />;
   }
@@ -20,52 +24,52 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   try {
     session = JSON.parse(sessionRaw);
   } catch (err) {
-    console.error("Invalid session JSON:", err);
+    console.error("⛔ Invalid session JSON:", err);
     localStorage.clear();
     return <Navigate to="/login" replace />;
   }
 
   // ----------------------------------------------
-  // ⭐ SESSION TIMEOUT (1 HOUR)
+  // SESSION TIMEOUT (1 hour)
   // ----------------------------------------------
-  const ONE_HOUR = 60 * 60 * 1000; // 3600000 ms
-  const sessionTimestamp = session.timestamp;
+  const ONE_HOUR = 60 * 60 * 1000; 
+  const lastTimestamp = session.timestamp;
 
-  if (!sessionTimestamp || Date.now() - sessionTimestamp > ONE_HOUR) {
-    console.warn("Session expired — logging out.");
-
-    // Clear auth data
-    localStorage.removeItem("cashierSession");
+  if (!lastTimestamp || Date.now() - lastTimestamp > ONE_HOUR) {
+    console.warn("⏰ Session expired — logging out.");
+    localStorage.removeItem("session");
     localStorage.removeItem("token");
-    localStorage.removeItem("store");
-    localStorage.removeItem("submittedBy");
-
     return <Navigate to="/login" replace />;
   }
 
   // ----------------------------------------------
-  // ⭐ ROLE-BASED ACCESS CONTROL
+  // ⭐ AUTO-REFRESH SESSION TIMESTAMP (Keeps user active)
   // ----------------------------------------------
+  session.timestamp = Date.now();
+  localStorage.setItem("session", JSON.stringify(session));
 
-  // Default role = "cashier" if not set (for backward compatibility)
+  // ----------------------------------------------
+  // ROLE-BASED ACCESS CONTROL
+  // ----------------------------------------------
   const userRole: string = session.role || "cashier";
 
-  // If route specifies required roles…
   if (roles && !roles.includes(userRole)) {
-    console.warn(`Access denied for role "${userRole}". Allowed roles:`, roles);
+    console.warn(
+      `⛔ Access denied for role "${userRole}". Required roles:`,
+      roles
+    );
 
-    // Redirect unauthorized users:
-    // Cashier → cashier form
-    // Manager/Admin → admin dashboard
+    // Redirect unauthorized roles safely
     if (userRole === "cashier") {
       return <Navigate to="/cashier" replace />;
-    } else {
-      return <Navigate to="/admin" replace />;
     }
+
+    // Manager/Admin fallback
+    return <Navigate to="/admin" replace />;
   }
 
   // ----------------------------------------------
-  // If NOT expired and role allowed → allow access
+  // ACCESS GRANTED
   // ----------------------------------------------
   return <>{children}</>;
 }

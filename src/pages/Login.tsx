@@ -1,114 +1,135 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { fetchCashiers } from "@/lib/api";
+import { fetchUsers, loginUser } from "@/lib/api";
 
-interface Cashier {
-  cashier_id: string;
+interface User {
+  user_id: string;
   name: string;
-  store: string;
-  store_normalized: string;
+  pin?: string;
+  role: "cashier" | "manager" | "admin";
+  active: boolean;
+  store: { id: string; name: string[] } | null;   // ⭐ STORE NAME = ARRAY FROM AIRTABLE
+  store_access: { id: string; name: string[] }[];
 }
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
 
-  const [cashiers, setCashiers] = useState<Cashier[]>([]);
-  const [selectedCashier, setSelectedCashier] = useState("");
+  const [users, setUsers] = useState<User[]>([]);
+  const [selectedUser, setSelectedUser] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
 
-  // ---------------------------------------------------------
-  // 🔄 Always start with a fresh login screen
-  // ---------------------------------------------------------
+  // Reset session on load
   useEffect(() => {
-    localStorage.removeItem("cashierSession");
-    localStorage.removeItem("token");
-    localStorage.removeItem("store");
-    localStorage.removeItem("submittedBy");
+    localStorage.clear();
   }, []);
 
-  // ---------------------------------------------------------
-  // 📌 Load Cashiers from Backend API (/auth/cashiers)
-  // ---------------------------------------------------------
+  // Load ACTIVE users
   useEffect(() => {
     async function load() {
       try {
-        const list = await fetchCashiers();
-        if (Array.isArray(list)) {
-          setCashiers(list);
-        } else {
-          console.error("Unexpected cashier response:", list);
-        }
+        const list = await fetchUsers();
+        const activeUsers = list.filter((u) => u.active === true);
+        setUsers(activeUsers);
       } catch (err) {
-        console.error("❌ Error loading cashiers:", err);
+        console.error("❌ Error loading users:", err);
       }
     }
     load();
   }, []);
 
-  // ---------------------------------------------------------
-  // 🟦 Handle Login
-  // ---------------------------------------------------------
-  const handleLogin = () => {
-    if (!selectedCashier || pin.length !== 4) {
-      setError("Please enter your name and 4-digit PIN.");
+  // Handle Login
+  const handleLogin = async () => {
+    setError("");
+
+    if (!selectedUser || pin.length !== 4) {
+      setError("Please select your name and enter a 4-digit PIN.");
       return;
     }
 
-    const cashier = cashiers.find((c) => c.cashier_id === selectedCashier);
+    const user = users.find((u) => u.user_id === selectedUser);
 
-    if (!cashier) {
-      setError("Invalid cashier selection.");
+    if (!user) {
+      setError("Invalid user selection.");
       return;
     }
 
-    if (!/^\d{4}$/.test(pin)) {
-      setError("PIN must be 4 digits.");
+    if (!user.active) {
+      setError("This account is inactive. Please contact a manager.");
       return;
     }
 
-    // 🔐 Save session
-    const session = {
-      cashierId: cashier.cashier_id,
-      cashierName: cashier.name,
-      store: cashier.store,
-      timestamp: Date.now(),
-    };
+    try {
+      // ⭐ Authenticate with backend
+      const authData = await loginUser(user.user_id, pin);
 
-    localStorage.setItem("cashierSession", JSON.stringify(session));
-    localStorage.setItem("token", "logged_in");
-    localStorage.setItem("store", cashier.store);
+      // ⭐ FIX: Airtable returns ["Nonie's"], so extract clean string
+      const cleanStoreName =
+        Array.isArray(authData.store?.name) && authData.store.name.length > 0
+          ? authData.store.name[0]
+          : null;
 
-    // ⭐ NEW — store submittedBy for CashierForm + Layout
-    localStorage.setItem("submittedBy", cashier.name);
+      // ⭐ FIX: Same for store_access → flatten names
+      const cleanStoreAccess =
+        authData.store_access?.map((sa: any) => ({
+          id: sa.id,
+          name:
+            Array.isArray(sa.name) && sa.name.length > 0 ? sa.name[0] : null,
+        })) || [];
 
-    navigate("/cashier", { replace: true });
+      // Create session
+      const session = {
+        userId: authData.user_id,
+        name: authData.name,
+        role: authData.role,
+        storeId: authData.store?.id || null,
+        storeName: cleanStoreName,
+        storeAccess: cleanStoreAccess,
+        timestamp: Date.now(),
+      };
+
+      localStorage.setItem("session", JSON.stringify(session));
+      localStorage.setItem("token", "logged_in");
+
+      // Redirect based on role
+      if (authData.role === "admin" || authData.role === "manager") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/cashier", { replace: true });
+      }
+    } catch (err: any) {
+      console.error("❌ Login error:", err);
+      setError("Incorrect PIN or inactive account.");
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 text-center">
-        <h1 className="text-2xl font-semibold mb-2">Cashier Login</h1>
+        <h1 className="text-2xl font-semibold mb-2">Staff Login</h1>
         <p className="text-gray-500 mb-6">
-          Select your name and enter your 4-digit PIN to start today’s closing.
+          Select your name and enter your 4-digit PIN.
         </p>
 
-        {/* NAME SELECT */}
+        {/* USER SELECT */}
         <div className="mb-6 text-left">
           <label className="font-medium">Name</label>
 
           <select
-            value={selectedCashier}
-            onChange={(e) => setSelectedCashier(e.target.value)}
+            value={selectedUser}
+            onChange={(e) => setSelectedUser(e.target.value)}
             className="w-full mt-1 border rounded-lg px-3 py-2 focus:ring-blue-500"
           >
             <option value="">Select your name</option>
 
-            {cashiers.length === 0 && <option disabled>Loading...</option>}
-
-            {cashiers.map((c) => (
-              <option key={c.cashier_id} value={c.cashier_id}>
-                {c.name} — {c.store}
+            {users.map((u) => (
+              <option key={u.user_id} value={u.user_id}>
+                {/* ⭐ Clean display — extract [0] if array */}
+                {u.name} —{" "}
+                {Array.isArray(u.store?.name)
+                  ? u.store?.name[0] || "No Store Assigned"
+                  : u.store?.name || "No Store Assigned"}
               </option>
             ))}
           </select>
@@ -126,10 +147,6 @@ const LoginPage: React.FC = () => {
             onChange={(e) => setPin(e.target.value)}
             className="w-full mt-1 border rounded-lg px-3 py-2 text-center tracking-widest text-xl"
           />
-
-          <p className="text-xs text-gray-400 mt-1">
-            4-digit PIN provided by your manager.
-          </p>
         </div>
 
         {/* ERROR */}

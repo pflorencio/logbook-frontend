@@ -1,12 +1,7 @@
-import { useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+// src/pages/index.tsx
+// This page no longer redirects.
+// SmartRedirect inside App.tsx handles role-based routing.
 
-export default function IndexRedirect(): null {
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    navigate("/cashier");
-  }, [navigate]); // add dependency for correctness
-
-  return null;
+export default function HomePlaceholder() {
+  return null; // Clean and intentional — allows App.tsx to control routing.
 }
