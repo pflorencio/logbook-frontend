@@ -8,8 +8,8 @@ interface User {
   pin?: string;
   role: "cashier" | "manager" | "admin";
   active: boolean;
-  store: { id: string; name: string[] } | null;   // ⭐ STORE NAME = ARRAY FROM AIRTABLE
-  store_access: { id: string; name: string[] }[];
+  store: { id: string; name: string } | null;
+  store_access: { id: string; name: string }[];
 }
 
 const LoginPage: React.FC = () => {
@@ -25,7 +25,7 @@ const LoginPage: React.FC = () => {
     localStorage.clear();
   }, []);
 
-  // Load ACTIVE users
+  // Load ACTIVE users from backend
   useEffect(() => {
     async function load() {
       try {
@@ -39,7 +39,7 @@ const LoginPage: React.FC = () => {
     load();
   }, []);
 
-  // Handle Login
+  // Handle login
   const handleLogin = async () => {
     setError("");
 
@@ -61,30 +61,31 @@ const LoginPage: React.FC = () => {
     }
 
     try {
-      // ⭐ Authenticate with backend
+      // Authenticate with backend
       const authData = await loginUser(user.user_id, pin);
 
-      // ⭐ FIX: Airtable returns ["Nonie's"], so extract clean string
-      const cleanStoreName =
-        Array.isArray(authData.store?.name) && authData.store.name.length > 0
-          ? authData.store.name[0]
-          : null;
+      // Clean store fields
+      const cleanStore = authData.store
+        ? {
+            id: authData.store.id,
+            name: authData.store.name || null,
+          }
+        : null;
 
-      // ⭐ FIX: Same for store_access → flatten names
+      // Clean store_access list
       const cleanStoreAccess =
         authData.store_access?.map((sa: any) => ({
           id: sa.id,
-          name:
-            Array.isArray(sa.name) && sa.name.length > 0 ? sa.name[0] : null,
+          name: sa.name || null,
         })) || [];
 
-      // Create session
+      // Create session object
       const session = {
         userId: authData.user_id,
         name: authData.name,
         role: authData.role,
-        storeId: authData.store?.id || null,
-        storeName: cleanStoreName,
+        storeId: cleanStore?.id || null,
+        storeName: cleanStore?.name || null,
         storeAccess: cleanStoreAccess,
         timestamp: Date.now(),
       };
@@ -98,7 +99,7 @@ const LoginPage: React.FC = () => {
       } else {
         navigate("/cashier", { replace: true });
       }
-    } catch (err: any) {
+    } catch (err) {
       console.error("❌ Login error:", err);
       setError("Incorrect PIN or inactive account.");
     }
@@ -125,11 +126,7 @@ const LoginPage: React.FC = () => {
 
             {users.map((u) => (
               <option key={u.user_id} value={u.user_id}>
-                {/* ⭐ Clean display — extract [0] if array */}
-                {u.name} —{" "}
-                {Array.isArray(u.store?.name)
-                  ? u.store?.name[0] || "No Store Assigned"
-                  : u.store?.name || "No Store Assigned"}
+                {u.name} — {u.store?.name || "No Store Assigned"}
               </option>
             ))}
           </select>
