@@ -143,15 +143,15 @@ export async function fetchClosings(
 }
 
 // Fetch unique closing record (store_id + date)
-export async function fetchUniqueClosing(
-  businessDate: string,
-  storeId: string
-): Promise<ClosingsResponse> {
-  const url = `${BACKEND_URL}/closings/unique?business_date=${encodeURIComponent(
-    businessDate
-  )}&store_id=${encodeURIComponent(storeId)}`;
+export async function fetchUniqueClosing(date: string, storeName: string) {
+  const url = `${BACKEND_URL}/closings/unique?business_date=${date}&store_name=${encodeURIComponent(
+    storeName
+  )}`;
 
-  return apiRequest<ClosingsResponse>(url);
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Failed to fetch unique closing");
+
+  return res.json();
 }
 
 // Create/update a closing record

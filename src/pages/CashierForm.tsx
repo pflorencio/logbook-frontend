@@ -178,11 +178,12 @@ const CashierForm: React.FC = () => {
   }
 
   // ----------------------------------------------------
-  // FETCH EXISTING — store_id aware
+  // FETCH EXISTING — now uses storeName (not storeId)
   // ----------------------------------------------------
   async function fetchExisting(showToast = false): Promise<void> {
-    if (!selectedDate || !storeId) return;
+    if (!selectedDate || !storeName) return;
 
+    // Abort previous request if still running
     if (lastFetchAbort.current) lastFetchAbort.current.abort();
     const controller = new AbortController();
     lastFetchAbort.current = controller;
@@ -190,11 +191,14 @@ const CashierForm: React.FC = () => {
     setLoading(true);
 
     try {
-      const data = await fetchUniqueClosing(selectedDate, storeId);
+      // ⭐ Corrected: Backend requires (date, storeName)
+      const data = await fetchUniqueClosing(selectedDate, storeName);
 
       if (data.status === "empty") {
         setRecordId(null);
         setIsLocked(false);
+
+        // Reset form for new entry
         setForm({
           ...form,
           date: selectedDate,
@@ -214,28 +218,39 @@ const CashierForm: React.FC = () => {
           actualCashCounted: "",
           cashFloat: "",
         });
+
         if (showToast) toast("No record found — starting fresh.");
         return;
       }
 
+      // Existing record found
       setRecordId(data.id);
+
       const f = data.fields || {};
       const lockStatus = (f["Lock Status"] || "").trim();
+
       setIsLocked(lockStatus.toLowerCase() === "locked");
+
+      // Map Airtable fields → form state
       setForm(mapFields(f));
 
       if (showToast) toast.success(`Record loaded (${lockStatus || "Unlocked"})`);
+
     } catch (err) {
-      console.error(err);
+      console.error("❌ fetchExisting error:", err);
       toast.error("Error fetching record.");
     } finally {
       setLoading(false);
     }
   }
 
+  // Auto-load whenever date or store changes
   useEffect(() => {
-    if (selectedDate && storeId) fetchExisting(true);
-  }, [selectedDate, storeId]);
+    if (selectedDate && storeName) {
+      fetchExisting(true);
+    }
+  }, [selectedDate, storeName]);
+
 
   // ----------------------------------------------------
   // SAVE
