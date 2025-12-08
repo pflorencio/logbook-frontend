@@ -188,23 +188,49 @@ const CashierForm: React.FC = () => {
     try {
       const data = await fetchUniqueClosing(selectedDate, storeName);
 
+      // -------------------------------
+      // ⭐ NO RECORD FOUND → RESET FORM
+      // -------------------------------
       if (data.status === "empty") {
         setRecordId(null);
         setIsLocked(false);
 
-        setForm((p) => ({ ...p, date: selectedDate }));
+        setForm({
+          date: selectedDate,
+          totalSales: "",
+          netSales: "",
+          cashPayments: "",
+          cardPayments: "",
+          digitalPayments: "",
+          grabPayments: "",
+          voucherPayments: "",
+          bankTransferPayments: "",
+          marketingExpenses: "",
+          kitchenBudget: "",
+          barBudget: "",
+          nonFoodBudget: "",
+          staffMealBudget: "",
+          actualCashCounted: "",
+          cashFloat: "",
+        });
 
         if (showToast) toast("No record found — starting fresh.");
         return;
       }
 
+      // -------------------------------
+      // ⭐ EXISTING RECORD FOUND
+      // -------------------------------
       setRecordId(data.id);
 
       const f = data.fields || {};
-      const lockStatus = (f["Lock Status"] || "").trim();
-      setIsLocked(lockStatus.toLowerCase() === "locked");
+      const lockStatus = (f["Lock Status"] || "").trim().toLowerCase();
+      setIsLocked(lockStatus === "locked");
 
-      setForm(mapFields(f));
+      setForm({
+        ...mapFields(f),
+        date: selectedDate,
+      });
 
       if (showToast) toast.success(`Record loaded (${lockStatus})`);
     } catch (err) {
@@ -214,10 +240,6 @@ const CashierForm: React.FC = () => {
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    if (selectedDate && storeName) fetchExisting(true);
-  }, [selectedDate, storeName]);
 
   // ----------------------------------------------
   // SAVE (no computed fields sent to backend)
@@ -258,7 +280,7 @@ const CashierForm: React.FC = () => {
       const payload = {
         business_date: selectedDate,
         store_id: storeId,
-        store: storeName,
+        store_name: storeName,   // ✅ FIXED (was store)
 
         total_sales: Number(form.totalSales),
         net_sales: Number(form.netSales),
@@ -285,16 +307,21 @@ const CashierForm: React.FC = () => {
       const res = await saveClosing(payload);
 
       toast.success(isCreate ? "Record created!" : "Record updated!");
-      setIsLocked(true); // backend always locks after save
+      setIsLocked(true);
 
       fetchExisting(false);
     } catch (err: any) {
       console.error("❌ Save error:", err);
 
-      try {
-        const data = await err.response?.json();
-        toast.error(data?.detail || "Save failed.");
-      } catch {
+      // Proper error parsing
+      if (typeof err.message === "string") {
+        try {
+          const parsed = JSON.parse(err.message);
+          toast.error(parsed.detail || "Save failed.");
+        } catch {
+          toast.error(err.message);
+        }
+      } else {
         toast.error("Save failed.");
       }
     } finally {
