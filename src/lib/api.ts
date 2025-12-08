@@ -130,11 +130,14 @@ export async function fetchClosings(
   return apiRequest(url);
 }
 
-// ⭐ FIXED: Backend expects ?store=name for lookup
-export async function fetchUniqueClosing(date: string, storeName: string) {
+// Fetch unique closing record (store_id + date)
+export async function fetchUniqueClosing(
+  businessDate: string,
+  storeId: string
+): Promise<{ id?: string; fields?: any; status?: string }> {
   const url = `${BACKEND_URL}/closings/unique?business_date=${encodeURIComponent(
-    date
-  )}&store=${encodeURIComponent(storeName)}`;
+    businessDate
+  )}&store_id=${encodeURIComponent(storeId)}`;
 
   return apiRequest(url);
 }

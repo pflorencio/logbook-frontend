@@ -174,11 +174,12 @@ const CashierForm: React.FC = () => {
   }
 
   // ----------------------------------------------
-  // FETCH EXISTING — uses storeName (correct)
+  // FETCH EXISTING — store_id aware
   // ----------------------------------------------
   async function fetchExisting(showToast = false): Promise<void> {
-    if (!selectedDate || !storeName) return;
+    if (!selectedDate || !storeId) return;
 
+    // Abort previous request if still running
     if (lastFetchAbort.current) lastFetchAbort.current.abort();
     const controller = new AbortController();
     lastFetchAbort.current = controller;
@@ -186,7 +187,8 @@ const CashierForm: React.FC = () => {
     setLoading(true);
 
     try {
-      const data = await fetchUniqueClosing(selectedDate, storeName);
+      // ✅ Frontend + backend both use (business_date, store_id)
+      const data = await fetchUniqueClosing(selectedDate, storeId);
 
       // -------------------------------
       // ⭐ NO RECORD FOUND → RESET FORM
@@ -195,6 +197,7 @@ const CashierForm: React.FC = () => {
         setRecordId(null);
         setIsLocked(false);
 
+        // Reset ALL fields cleanly for a fresh entry
         setForm({
           date: selectedDate,
           totalSales: "",
@@ -227,12 +230,15 @@ const CashierForm: React.FC = () => {
       const lockStatus = (f["Lock Status"] || "").trim().toLowerCase();
       setIsLocked(lockStatus === "locked");
 
+      // Map Airtable → form + make sure date is the current selection
       setForm({
         ...mapFields(f),
         date: selectedDate,
       });
 
-      if (showToast) toast.success(`Record loaded (${lockStatus})`);
+      if (showToast) {
+        toast.success(`Record loaded (${lockStatus || "unlocked"})`);
+      }
     } catch (err) {
       console.error("❌ fetchExisting error:", err);
       toast.error("Error fetching record.");
