@@ -3,9 +3,8 @@ import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 import Layout from "../components/Layout";
-import { fetchUniqueClosing, saveClosing } from "@/lib/api";
+import { fetchUniqueClosing, saveClosing, unlockRecord } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/api";
-import { unlockRecord } from "@/lib/api";
 
 console.log("🟢 Using backend URL:", BACKEND_URL);
 
@@ -50,7 +49,7 @@ const numericFields: (keyof FormState)[] = [
 ];
 
 const CashierForm: React.FC = () => {
-  console.log("🧾 CashierForm v10 — final stable build");
+  console.log("🧾 CashierForm v11 — with fetch debugging enabled");
 
   // ----------------------------------------------
   // SESSION
@@ -59,7 +58,7 @@ const CashierForm: React.FC = () => {
 
   const userName: string = session.name || "Cashier";
   const storeId: string = session.storeId || null;
-  const storeName: string = session.storeName || "Unknown Store";
+  const storeName: string = session.storeName || null; // 🔥 IMPORTANT: used by fetchUniqueClosing
   const submittedBy: string = userName;
 
   const navigate = useNavigate();
@@ -106,7 +105,7 @@ const CashierForm: React.FC = () => {
   const lastFetchAbort = useRef<AbortController | null>(null);
 
   // ----------------------------------------------
-  // COMPUTED FIELDS — UI ONLY (NOT SENT TO BACKEND)
+  // COMPUTED FIELD HELPERS
   // ----------------------------------------------
   const variance = useMemo(() => {
     const actual = Number(form.actualCashCounted) || 0;
@@ -116,11 +115,12 @@ const CashierForm: React.FC = () => {
   }, [form]);
 
   const totalBudgets = useMemo(() => {
-    const k = Number(form.kitchenBudget) || 0;
-    const b = Number(form.barBudget) || 0;
-    const n = Number(form.nonFoodBudget) || 0;
-    const s = Number(form.staffMealBudget) || 0;
-    return k + b + n + s;
+    return (
+      (Number(form.kitchenBudget) || 0) +
+      (Number(form.barBudget) || 0) +
+      (Number(form.nonFoodBudget) || 0) +
+      (Number(form.staffMealBudget) || 0)
+    );
   }, [form]);
 
   const rawCashForDeposit = useMemo(() => {
@@ -130,7 +130,8 @@ const CashierForm: React.FC = () => {
   }, [form, totalBudgets]);
 
   const cashForDeposit = Math.max(0, rawCashForDeposit);
-  const transferNeeded = rawCashForDeposit < 0 ? Math.abs(rawCashForDeposit) : 0;
+  const transferNeeded =
+    rawCashForDeposit < 0 ? Math.abs(rawCashForDeposit) : 0;
 
   const peso = (n: number | string): string =>
     isNaN(Number(n)) || n === "" ? "₱0" : `₱${Number(n).toLocaleString("en-PH")}`;
@@ -163,7 +164,9 @@ const CashierForm: React.FC = () => {
       voucherPayments: f["Voucher Payments"] ?? "",
       bankTransferPayments: f["Bank Transfer Payments"] ?? "",
       marketingExpenses:
-        f["Marketing Expenses"] || f["Marketing Expense (recorded as sale)"] || "",
+        f["Marketing Expenses"] ||
+        f["Marketing Expense (recorded as sale)"] ||
+        "",
       kitchenBudget: f["Kitchen Budget"] ?? "",
       barBudget: f["Bar Budget"] ?? "",
       nonFoodBudget: f["Non Food Budget"] ?? "",
@@ -174,12 +177,24 @@ const CashierForm: React.FC = () => {
   }
 
   // ----------------------------------------------
-  // FETCH EXISTING — store_id aware
+  // FETCH EXISTING — Option B IMPLEMENTED
   // ----------------------------------------------
   async function fetchExisting(showToast = false): Promise<void> {
-    if (!selectedDate || !storeId) return;
+    if (!selectedDate || !storeName) {
+      console.log("⚠️ fetchExisting skipped — missing:", {
+        selectedDate,
+        storeName,
+      });
+      return;
+    }
 
-    // Abort previous request if still running
+    console.log("🚀 fetchExisting → calling backend with:", {
+      selectedDate,
+      storeName,
+      url: `${BACKEND_URL}/closings/unique?business_date=${selectedDate}&store=${storeName}`,
+    });
+
+    // Cancel previous request
     if (lastFetchAbort.current) lastFetchAbort.current.abort();
     const controller = new AbortController();
     lastFetchAbort.current = controller;
@@ -187,17 +202,15 @@ const CashierForm: React.FC = () => {
     setLoading(true);
 
     try {
-      // ✅ Frontend + backend both use (business_date, store_id)
-      const data = await fetchUniqueClosing(selectedDate, storeId);
+      const data = await fetchUniqueClosing(selectedDate, storeName);
+      console.log("📥 fetchExisting response:", data);
 
-      // -------------------------------
-      // ⭐ NO RECORD FOUND → RESET FORM
-      // -------------------------------
+      // NO RECORD FOUND
       if (data.status === "empty") {
+        console.log("ℹ️ No record found for this date+store");
+
         setRecordId(null);
         setIsLocked(false);
-
-        // Reset ALL fields cleanly for a fresh entry
         setForm({
           date: selectedDate,
           totalSales: "",
@@ -221,16 +234,16 @@ const CashierForm: React.FC = () => {
         return;
       }
 
-      // -------------------------------
-      // ⭐ EXISTING RECORD FOUND
-      // -------------------------------
+      // EXISTING RECORD FOUND
+      console.log("✅ Existing record found:", data.id);
+
       setRecordId(data.id);
 
       const f = data.fields || {};
       const lockStatus = (f["Lock Status"] || "").trim().toLowerCase();
       setIsLocked(lockStatus === "locked");
 
-      // Map Airtable → form + make sure date is the current selection
+      // Map fields
       setForm({
         ...mapFields(f),
         date: selectedDate,
@@ -248,7 +261,16 @@ const CashierForm: React.FC = () => {
   }
 
   // ----------------------------------------------
-  // SAVE (no computed fields sent to backend)
+  // TRIGGER FETCH WHEN DATE CHANGES
+  // ----------------------------------------------
+  useEffect(() => {
+    if (selectedDate) {
+      fetchExisting(true);
+    }
+  }, [selectedDate]);
+
+  // ----------------------------------------------
+  // SAVE RECORD
   // ----------------------------------------------
   const handleSave = async () => {
     if (!storeId) {
@@ -273,6 +295,7 @@ const CashierForm: React.FC = () => {
     }
 
     const isCreate = !recordId;
+
     if (isCreate) {
       const ok = window.confirm(
         "This will CREATE a new closing record and LOCK it. Continue?"
@@ -283,10 +306,16 @@ const CashierForm: React.FC = () => {
     try {
       setIsSaving(true);
 
+      console.log("📤 Saving payload:", {
+        business_date: selectedDate,
+        store_id: storeId,
+        store_name: storeName,
+      });
+
       const payload = {
         business_date: selectedDate,
         store_id: storeId,
-        store_name: storeName,   // ✅ FIXED (was store)
+        store_name: storeName,
 
         total_sales: Number(form.totalSales),
         net_sales: Number(form.netSales),
@@ -312,6 +341,8 @@ const CashierForm: React.FC = () => {
 
       const res = await saveClosing(payload);
 
+      console.log("✅ Save successful:", res);
+
       toast.success(isCreate ? "Record created!" : "Record updated!");
       setIsLocked(true);
 
@@ -319,15 +350,10 @@ const CashierForm: React.FC = () => {
     } catch (err: any) {
       console.error("❌ Save error:", err);
 
-      // Proper error parsing
-      if (typeof err.message === "string") {
-        try {
-          const parsed = JSON.parse(err.message);
-          toast.error(parsed.detail || "Save failed.");
-        } catch {
-          toast.error(err.message);
-        }
-      } else {
+      try {
+        const parsed = JSON.parse(err.message);
+        toast.error(parsed.detail || "Save failed.");
+      } catch {
         toast.error("Save failed.");
       }
     } finally {
@@ -336,9 +362,8 @@ const CashierForm: React.FC = () => {
   };
 
   // ----------------------------------------------
-  // UNLOCK (Manager PIN) — Updated to use unlockRecord()
+  // UNLOCK LOGIC
   // ----------------------------------------------
-
   const openUnlockModal = () => {
     if (!recordId) {
       toast.error("No record loaded.");
@@ -357,7 +382,8 @@ const CashierForm: React.FC = () => {
     }
 
     try {
-      // ⭐ Now using the shared API client
+      console.log("🔓 Attempting unlock:", { recordId, managerPin });
+
       await unlockRecord(recordId, managerPin);
 
       toast.success("Record unlocked!");
@@ -366,13 +392,13 @@ const CashierForm: React.FC = () => {
 
       fetchExisting(true);
     } catch (err) {
-      console.error("Unlock error:", err);
+      console.error("❌ Unlock error:", err);
       toast.error("Invalid PIN.");
     }
   };
 
   // ----------------------------------------------
-  // UI CLASSES
+  // UI RENDER BELOW (unchanged)
   // ----------------------------------------------
   const inputBase =
     "w-full px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50 text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -382,9 +408,6 @@ const CashierForm: React.FC = () => {
   const sectionCard =
     "rounded-2xl bg-white shadow-md p-5 md:p-6 space-y-4 border border-gray-100";
 
-  // ----------------------------------------------
-  // RENDER
-  // ----------------------------------------------
   return (
     <Layout cashierName={userName} onLogout={handleLogout}>
       <div className="min-h-screen bg-[#F5F5F7] px-3 py-4 flex justify-center">
@@ -559,7 +582,7 @@ const CashierForm: React.FC = () => {
                 </div>
               </section>
 
-              {/* SUMMARY (Frontend Only) */}
+              {/* SUMMARY */}
               <section className={sectionCard}>
                 <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
                   Summary (Preview)
