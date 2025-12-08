@@ -19,7 +19,7 @@ export interface StoreRef {
 export interface User {
   user_id: string;
   name: string;
-  pin?: string; // Only in /auth/users, never returned on login
+  pin?: string; // Not returned on login
   role: "cashier" | "manager" | "admin";
   active: boolean;
   store: StoreRef | null;
@@ -50,11 +50,11 @@ export interface DailySummaryResponse {
 }
 
 // -------------------------------------------------------------
-// SHARED FETCH HELPER
+// SHARED FETCH WRAPPER
 // -------------------------------------------------------------
 
 async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
-  console.log("🌐 API →", options.method || "GET", url);
+  console.log("🌐 API REQUEST →", options.method || "GET", url);
 
   const res = await fetch(url, {
     ...options,
@@ -65,9 +65,9 @@ async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T>
   });
 
   if (!res.ok) {
-    const text = await res.text();
-    console.error("❌ API Error:", text);
-    throw new Error(text || `Request failed with status ${res.status}`);
+    let detail = await res.text();
+    console.error("❌ API Error:", detail);
+    throw new Error(detail || `Request failed with status ${res.status}`);
   }
 
   return (await res.json()) as T;
@@ -77,16 +77,12 @@ async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T>
 // AUTH / USERS
 // -------------------------------------------------------------
 
-// Fetch list of active users
 export async function fetchUsers(): Promise<User[]> {
-  const url = `${BACKEND_URL}/auth/users`;
-  return apiRequest<User[]>(url);
+  return apiRequest<User[]>(`${BACKEND_URL}/auth/users`);
 }
 
-// Login user & validate PIN
 export async function loginUser(user_id: string, pin: string) {
-  const url = `${BACKEND_URL}/auth/user-login`;
-  return apiRequest(url, {
+  return apiRequest(`${BACKEND_URL}/auth/user-login`, {
     method: "POST",
     body: JSON.stringify({ user_id, pin }),
   });
@@ -96,19 +92,15 @@ export async function loginUser(user_id: string, pin: string) {
 // ADMIN — USER MANAGEMENT
 // -------------------------------------------------------------
 
-// ⭐ CREATE USER (newly added)
 export async function createUser(payload: any) {
-  const url = `${BACKEND_URL}/admin/users`;
-  return apiRequest(url, {
+  return apiRequest(`${BACKEND_URL}/admin/users`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-// Update an existing user
 export async function updateUser(user_id: string, payload: any) {
-  const url = `${BACKEND_URL}/admin/users/${user_id}`;
-  return apiRequest(url, {
+  return apiRequest(`${BACKEND_URL}/admin/users/${user_id}`, {
     method: "PATCH",
     body: JSON.stringify(payload),
   });
@@ -117,16 +109,16 @@ export async function updateUser(user_id: string, payload: any) {
 // -------------------------------------------------------------
 // STORES
 // -------------------------------------------------------------
+
 export async function fetchStores() {
-  const url = `${BACKEND_URL}/stores`;
-  return apiRequest<{ id: string; name: string }[]>(url);
+  return apiRequest<{ id: string; name: string }[]>(`${BACKEND_URL}/stores`);
 }
 
 // -------------------------------------------------------------
-// DAILY CLOSINGS (Cashier + Dashboard)
+// DAILY CLOSINGS
 // -------------------------------------------------------------
 
-// Multi-store fetch (Dashboard)
+// Dashboard: fetch all closings for date (optional store filter)
 export async function fetchClosings(
   businessDate: string,
   storeId?: string
@@ -134,74 +126,69 @@ export async function fetchClosings(
   let url = `${BACKEND_URL}/closings?business_date=${encodeURIComponent(
     businessDate
   )}`;
-
-  if (storeId) {
-    url += `&store_id=${encodeURIComponent(storeId)}`;
-  }
-
-  return apiRequest<ClosingsResponse>(url);
+  if (storeId) url += `&store_id=${encodeURIComponent(storeId)}`;
+  return apiRequest(url);
 }
 
-// Fetch unique closing record (store_id + date)
+// ⭐ FIXED: Backend expects ?store=name for lookup
 export async function fetchUniqueClosing(date: string, storeName: string) {
-  const url = `${BACKEND_URL}/closings/unique?business_date=${date}&store_name=${encodeURIComponent(
-    storeName
-  )}`;
+  const url = `${BACKEND_URL}/closings/unique?business_date=${encodeURIComponent(
+    date
+  )}&store=${encodeURIComponent(storeName)}`;
 
-  const res = await fetch(url);
-  if (!res.ok) throw new Error("Failed to fetch unique closing");
-
-  return res.json();
+  return apiRequest(url);
 }
 
-// Create/update a closing record
+// Create or update closing
 export async function saveClosing(payload: any) {
-  const url = `${BACKEND_URL}/closings`;
-
-  return apiRequest(url, {
+  return apiRequest(`${BACKEND_URL}/closings`, {
     method: "POST",
     body: JSON.stringify(payload),
   });
 }
 
-// Inline field update (Dashboard)
+// Dashboard inline update
 export async function updateField(
   recordId: string,
   fieldName: string,
   newValue: number
 ) {
-  const url = `${BACKEND_URL}/closings/${recordId}`;
-
-  return apiRequest(url, {
+  return apiRequest(`${BACKEND_URL}/closings/${recordId}`, {
     method: "PATCH",
     body: JSON.stringify({ [fieldName]: newValue }),
   });
 }
 
-// Verify record (manager/admin)
+// ⭐ Required for Manager Unlock Modal
+export async function unlockRecord(recordId: string, pin: string) {
+  return apiRequest(`${BACKEND_URL}/closings/${recordId}/unlock`, {
+    method: "POST",
+    body: JSON.stringify({ pin }),
+  });
+}
+
+// Verify (manager/admin)
 export async function verifyRecord(
   record_id: string,
   status: string,
   verified_by: string
 ) {
-  const url = `${BACKEND_URL}/verify`;
-
-  return apiRequest(url, {
+  return apiRequest(`${BACKEND_URL}/verify`, {
     method: "POST",
     body: JSON.stringify({ record_id, status, verified_by }),
   });
 }
 
 // -------------------------------------------------------------
-// REPORTING
+// REPORTING ENDPOINTS
 // -------------------------------------------------------------
 
 export async function fetchDailySummary(
   businessDate: string
 ): Promise<DailySummaryResponse> {
-  const url = `${BACKEND_URL}/reports/daily-summary?business_date=${encodeURIComponent(
-    businessDate
-  )}`;
-
-  return apiRequest<DailySummaryResponse>(url);
+  return apiRequest(
+    `${BACKEND_URL}/reports/daily-summary?business_date=${encodeURIComponent(
+      businessDate
+    )}`
+  );
 }
