@@ -44,21 +44,28 @@ export default function AdminLogin() {
     try {
       const data = await loginUser(selectedUserId, pin);
 
-      // Save session
+      // ⭐ Normalize fields (Airtable sometimes returns undefined)
+      const store = data.store || null;
+      const storeAccess = data.store_access || [];
+
+      // ⭐ Save session with timestamp + token
       localStorage.setItem(
         "session",
         JSON.stringify({
-          userId: data.user_id,
+          user_id: data.user_id,
           name: data.name,
           role: data.role,
-          store: data.store,
-          storeAccess: data.store_access,
+          store,
+          storeAccess,
+          timestamp: Date.now(),        // ⭐ REQUIRED FOR PROTECTEDROUTE
         })
       );
 
-      toast.success("Welcome!");
+      localStorage.setItem("token", "admin-auth"); // ⭐ REQUIRED
 
-      // Redirect to management dashboard
+      toast.success(`Welcome ${data.name}!`);
+
+      // ⭐ Redirect to admin dashboard
       navigate("/admin", { replace: true });
 
     } catch (err) {
