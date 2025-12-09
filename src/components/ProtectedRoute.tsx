@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -7,64 +7,90 @@ interface ProtectedRouteProps {
 }
 
 export default function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
-  // ⭐ Using new universal session format
-  const sessionRaw = localStorage.getItem("session");
-  const token = localStorage.getItem("token");
+  const location = useLocation();
 
   // ----------------------------------------------
-  // AUTH CHECK
+  // LOAD SESSION
   // ----------------------------------------------
-  if (!sessionRaw || !token) {
-    console.warn("⛔ No session or token → redirecting to login.");
-    localStorage.clear();
+  const raw = localStorage.getItem("session");
+
+  if (!raw) {
+    console.warn("⛔ No session found. User not logged in.");
+
+    // If user tries to access admin pages → go to admin-login
+    if (location.pathname.startsWith("/admin")) {
+      return <Navigate to="/admin-login" replace />;
+    }
+
+    // Otherwise → cashier login
     return <Navigate to="/login" replace />;
   }
 
-  let session: any;
+  // Safely parse session
+  let session: any = null;
   try {
-    session = JSON.parse(sessionRaw);
+    session = JSON.parse(raw);
   } catch (err) {
     console.error("⛔ Invalid session JSON:", err);
-    localStorage.clear();
+    localStorage.removeItem("session");
+    if (location.pathname.startsWith("/admin")) {
+      return <Navigate to="/admin-login" replace />;
+    }
     return <Navigate to="/login" replace />;
   }
+
+  const userRole: string = session.role || "cashier";
 
   // ----------------------------------------------
   // SESSION TIMEOUT (1 hour)
   // ----------------------------------------------
-  const ONE_HOUR = 60 * 60 * 1000; 
+  const ONE_HOUR = 60 * 60 * 1000;
   const lastTimestamp = session.timestamp;
 
   if (!lastTimestamp || Date.now() - lastTimestamp > ONE_HOUR) {
     console.warn("⏰ Session expired — logging out.");
     localStorage.removeItem("session");
-    localStorage.removeItem("token");
+
+    if (location.pathname.startsWith("/admin")) {
+      return <Navigate to="/admin-login" replace />;
+    }
     return <Navigate to="/login" replace />;
   }
 
   // ----------------------------------------------
-  // ⭐ AUTO-REFRESH SESSION TIMESTAMP (Keeps user active)
+  // AUTO-REFRESH TIMESTAMP
   // ----------------------------------------------
   session.timestamp = Date.now();
   localStorage.setItem("session", JSON.stringify(session));
 
   // ----------------------------------------------
-  // ROLE-BASED ACCESS CONTROL
+  // 🚨 ROLE-BASED ACCESS RULES
   // ----------------------------------------------
-  const userRole: string = session.role || "cashier";
 
+  // Case 1 — Admin pages require manager/admin
+  if (location.pathname.startsWith("/admin")) {
+    if (userRole !== "admin" && userRole !== "manager") {
+      console.warn("⛔ Cashier trying to access admin area.");
+      return <Navigate to="/login" replace />;
+    }
+  }
+
+  // Case 2 — Cashier pages require cashier role
+  if (location.pathname.startsWith("/cashier")) {
+    if (userRole !== "cashier") {
+      console.warn("⛔ Manager/Admin trying to access cashier area.");
+      return <Navigate to="/admin" replace />;
+    }
+  }
+
+  // Additionally support explicit roles prop (optional)
   if (roles && !roles.includes(userRole)) {
-    console.warn(
-      `⛔ Access denied for role "${userRole}". Required roles:`,
-      roles
-    );
+    console.warn(`⛔ Access denied for role "${userRole}". Required:`, roles);
 
-    // Redirect unauthorized roles safely
     if (userRole === "cashier") {
       return <Navigate to="/cashier" replace />;
     }
 
-    // Manager/Admin fallback
     return <Navigate to="/admin" replace />;
   }
 

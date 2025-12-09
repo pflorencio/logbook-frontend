@@ -49,6 +49,17 @@ export interface DailySummaryResponse {
   preview: string;
 }
 
+export interface DashboardSummaryResponse {
+  status: "found" | "empty";
+  business_date: string;
+  store: string | null;
+  record_id: string | null;
+  lock_status: string;
+  summary: any | null;
+  formulas?: any;
+  raw_fields: any;
+}
+
 // -------------------------------------------------------------
 // SHARED FETCH WRAPPER
 // -------------------------------------------------------------
@@ -118,7 +129,6 @@ export async function fetchStores() {
 // DAILY CLOSINGS
 // -------------------------------------------------------------
 
-// Dashboard: fetch all closings for date (optional store filter)
 export async function fetchClosings(
   businessDate: string,
   storeId?: string
@@ -130,7 +140,6 @@ export async function fetchClosings(
   return apiRequest(url);
 }
 
-// Fetch unique closing record (store_id + date)
 export async function fetchUniqueClosing(
   businessDate: string,
   storeId: string
@@ -138,11 +147,9 @@ export async function fetchUniqueClosing(
   const url = `${BACKEND_URL}/closings/unique?business_date=${encodeURIComponent(
     businessDate
   )}&store_id=${encodeURIComponent(storeId)}`;
-
   return apiRequest(url);
 }
 
-// Create or update closing
 export async function saveClosing(payload: any) {
   return apiRequest(`${BACKEND_URL}/closings`, {
     method: "POST",
@@ -150,7 +157,6 @@ export async function saveClosing(payload: any) {
   });
 }
 
-// Dashboard inline update
 export async function updateField(
   recordId: string,
   fieldName: string,
@@ -162,7 +168,6 @@ export async function updateField(
   });
 }
 
-// ⭐ Required for Manager Unlock Modal
 export async function unlockRecord(recordId: string, pin: string) {
   return apiRequest(`${BACKEND_URL}/closings/${recordId}/unlock`, {
     method: "POST",
@@ -170,7 +175,6 @@ export async function unlockRecord(recordId: string, pin: string) {
   });
 }
 
-// Verify (manager/admin)
 export async function verifyRecord(
   record_id: string,
   status: string,
@@ -183,7 +187,7 @@ export async function verifyRecord(
 }
 
 // -------------------------------------------------------------
-// REPORTING ENDPOINTS
+// REPORTING (Daily Summary)
 // -------------------------------------------------------------
 
 export async function fetchDailySummary(
@@ -194,4 +198,19 @@ export async function fetchDailySummary(
       businessDate
     )}`
   );
+}
+
+// -------------------------------------------------------------
+// ⭐ NEW — Dashboard Summary (backend-computed analytics)
+// -------------------------------------------------------------
+
+export async function fetchDashboardClosing(
+  storeId: string,
+  businessDate: string
+): Promise<DashboardSummaryResponse> {
+  const url = `${BACKEND_URL}/dashboard/closings?store_id=${encodeURIComponent(
+    storeId
+  )}&business_date=${encodeURIComponent(businessDate)}`;
+
+  return apiRequest<DashboardSummaryResponse>(url);
 }

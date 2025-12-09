@@ -5,7 +5,6 @@ import {
   Routes,
   Route,
   Navigate,
-  useLocation,
 } from "react-router-dom";
 
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -23,10 +22,16 @@ import AdminUsers from "./pages/admin/users";
 import AdminReports from "./pages/admin/reports";
 import AdminSettings from "./pages/admin/settings";
 
+// ⭐ NEW: Admin Login
+import AdminLogin from "./pages/admin-login";
+
+// ⭐ NEW: Closing Record & Verification Pages
+import RecordView from "./pages/admin/closing/RecordView";
+import VerifyClosing from "./pages/admin/verify/VerifyClosing";
+
 
 // -------------------------------------------------------
-// ⭐ NEW: SmartRedirect component
-// Redirects user to correct home depending on role
+// ⭐ SmartRedirect — sends user based on role
 // -------------------------------------------------------
 function SmartRedirect() {
   const sessionRaw = localStorage.getItem("session");
@@ -42,10 +47,12 @@ function SmartRedirect() {
 
   const role = session.role;
 
-  if (role === "admin" || role === "manager") return <Navigate to="/admin" replace />;
+  if (role === "admin" || role === "manager") {
+    return <Navigate to="/admin" replace />;
+  }
+
   return <Navigate to="/cashier" replace />;
 }
-
 
 
 // -------------------------------------------------------
@@ -59,6 +66,7 @@ export default function App() {
         <Routes>
           {/* ---------- PUBLIC ROUTES ---------- */}
           <Route path="/login" element={<Login />} />
+          <Route path="/admin-login" element={<AdminLogin />} />
 
           {/* ---------- DEFAULT ROUTE ---------- */}
           <Route
@@ -70,11 +78,11 @@ export default function App() {
             }
           />
 
-          {/* ---------- CASHIER ROUTES ---------- */}
+          {/* ---------- CASHIER ROUTES (cashier ONLY) ---------- */}
           <Route
             path="/cashier"
             element={
-              <ProtectedRoute roles={["cashier", "manager", "admin"]}>
+              <ProtectedRoute roles={["cashier"]}>
                 <CashierForm />
               </ProtectedRoute>
             }
@@ -83,7 +91,7 @@ export default function App() {
           <Route
             path="/history"
             element={
-              <ProtectedRoute roles={["cashier", "manager", "admin"]}>
+              <ProtectedRoute roles={["cashier"]}>
                 <HistoryPage />
               </ProtectedRoute>
             }
@@ -92,13 +100,13 @@ export default function App() {
           <Route
             path="/settings"
             element={
-              <ProtectedRoute roles={["cashier", "manager", "admin"]}>
+              <ProtectedRoute roles={["cashier"]}>
                 <SettingsPage />
               </ProtectedRoute>
             }
           />
 
-          {/* ---------- ADMIN ROUTES ---------- */}
+          {/* ---------- ADMIN ROUTES (manager + admin ONLY) ---------- */}
           <Route
             path="/admin"
             element={
@@ -131,6 +139,25 @@ export default function App() {
             element={
               <ProtectedRoute roles={["admin"]}>
                 <AdminSettings />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ---------- ⭐ NEW ADMIN ROUTES ---------- */}
+          <Route
+            path="/admin/closing/:recordId"
+            element={
+              <ProtectedRoute roles={["admin", "manager"]}>
+                <RecordView />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/verify/:recordId"
+            element={
+              <ProtectedRoute roles={["admin", "manager"]}>
+                <VerifyClosing />
               </ProtectedRoute>
             }
           />
