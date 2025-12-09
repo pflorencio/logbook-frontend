@@ -202,7 +202,7 @@ const CashierForm: React.FC = () => {
     setLoading(true);
 
     try {
-      const data = await fetchUniqueClosing(selectedDate, storeName);
+      const data = await fetchUniqueClosing(selectedDate, storeId);
       console.log("📥 fetchExisting response:", data);
 
       // NO RECORD FOUND
