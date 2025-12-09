@@ -1,206 +1,168 @@
+// src/pages/admin/index.tsx
 import React, { useEffect, useState } from "react";
 import AdminLayout from "@/components/AdminLayout";
-import { fetchDashboardClosing } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/api";
-
-// Utility
-const peso = (n: number | string | null | undefined) =>
-  !n && n !== 0 ? "₱0" : `₱${Number(n).toLocaleString("en-PH")}`;
-
-interface Store {
-  id: string;
-  name: string;
-}
+import toast from "react-hot-toast";
 
 export default function AdminDashboard() {
-  const session = JSON.parse(localStorage.getItem("session") || "{}");
-  const allowedStores: Store[] = session.storeAccess || []; // fallback to one-store setup
-  const primaryStore = session.store || null;
+  const [storeSummaries, setStoreSummaries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const [stores, setStores] = useState<Store[]>([]);
-  const [storeId, setStoreId] = useState<string>(primaryStore?.id || "");
-  const [date, setDate] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
-  const [summary, setSummary] = useState<any>(null);
-  const [rawFields, setRawFields] = useState<any>(null);
-  const [lockStatus, setLockStatus] = useState<string>("");
+  // Get yesterday's business date (YYYY-MM-DD)
+  function getYesterday() {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
 
-  // ----------------------------------------------------
-  // Load stores list for dropdown
-  // ----------------------------------------------------
-  useEffect(() => {
-    async function loadStores() {
-      try {
-        const res = await fetch(`${BACKEND_URL}/stores`);
-        const data = await res.json();
-        setStores(data);
-      } catch (err) {
-        console.error("Failed to load stores:", err);
-      }
-    }
-    loadStores();
-  }, []);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
 
-  // ----------------------------------------------------
-  // Fetch dashboard summary
-  // ----------------------------------------------------
-  async function loadSummary() {
-    if (!storeId || !date) return;
+    return `${yyyy}-${mm}-${dd}`;
+  }
 
+  const businessDate = getYesterday();
+
+  // Fetch summaries for each store the user has access to
+  async function loadDashboard() {
     setLoading(true);
-    try {
-      const result = await fetchDashboardClosing(storeId, date);
 
-      if (result.status === "empty") {
-        setSummary(null);
-        setRawFields(null);
-        setLockStatus("Unlocked");
-        return;
+    try {
+      const sessionRaw = localStorage.getItem("session");
+      if (!sessionRaw) return;
+
+      const session = JSON.parse(sessionRaw);
+
+      // Determine store list
+      let stores: any[] = [];
+
+      if (session.storeAccess && session.storeAccess.length > 0) {
+        stores = session.storeAccess;
+      } else if (session.store) {
+        stores = [session.store];
       }
 
-      setSummary(result.summary);
-      setRawFields(result.raw_fields);
-      setLockStatus(result.lock_status);
+      // Alphabetical ordering
+      stores.sort((a, b) => a.name.localeCompare(b.name));
+
+      const results: any[] = [];
+
+      for (const store of stores) {
+        try {
+          const res = await fetch(
+            `${BACKEND_URL}/dashboard/closings?store_id=${store.id}&business_date=${businessDate}`
+          );
+          const data = await res.json();
+
+          results.push({
+            storeName: store.name,
+            summary: data.summary || null,
+            missing: !data.summary,
+          });
+        } catch (err) {
+          console.error("Error loading store summary:", err);
+          results.push({
+            storeName: store.name,
+            summary: null,
+            missing: true,
+          });
+        }
+      }
+
+      setStoreSummaries(results);
     } catch (err) {
-      console.error("Error fetching summary:", err);
+      console.error(err);
+      toast.error("Failed to load dashboard.");
     } finally {
       setLoading(false);
     }
   }
 
-  // Trigger when store or date changes
   useEffect(() => {
-    if (storeId && date) loadSummary();
-  }, [storeId, date]);
+    loadDashboard();
+  }, []);
+
+  const peso = (n: number | string | null | undefined) =>
+    !n && n !== 0 ? "₱0" : `₱${Number(n).toLocaleString("en-PH")}`;
+
 
   return (
     <AdminLayout>
-      <div className="p-6 space-y-6">
+      <div className="space-y-8">
 
-        {/* -------------------------------------------------- */}
-        {/* HEADER */}
-        {/* -------------------------------------------------- */}
-        <h1 className="text-2xl font-semibold text-gray-900">
-          Daily Closing Dashboard
-        </h1>
-
-        <div className="text-gray-600">
-          View summaries and closing data per store per business day.
-        </div>
-
-        {/* -------------------------------------------------- */}
-        {/* FILTER BAR */}
-        {/* -------------------------------------------------- */}
-        <div className="flex flex-wrap items-center gap-4 bg-white shadow p-4 rounded-xl border border-gray-100">
-
-          {/* Store Selector */}
-          <div className="flex flex-col">
-            <label className="text-xs text-gray-500 mb-1">Store</label>
-            <select
-              className="px-3 py-2 rounded-lg border bg-white"
-              value={storeId}
-              onChange={(e) => setStoreId(e.target.value)}
-            >
-              <option value="">Select store...</option>
-              {stores.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Date Selector */}
-          <div className="flex flex-col">
-            <label className="text-xs text-gray-500 mb-1">Business Date</label>
-            <input
-              type="date"
-              className="px-3 py-2 rounded-lg border bg-white"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-            />
-          </div>
-        </div>
-
-        {/* -------------------------------------------------- */}
-        {/* LOADING */}
-        {/* -------------------------------------------------- */}
-        {loading && <p className="text-gray-500 mt-4">Loading summary…</p>}
-
-        {/* -------------------------------------------------- */}
-        {/* SUMMARY CARDS */}
-        {/* -------------------------------------------------- */}
-        {summary && !loading && (
-          <div className="grid md:grid-cols-4 gap-4 mt-6">
-            <div className="p-4 bg-white rounded-xl shadow border">
-              <p className="text-xs text-gray-500">Variance</p>
-              <p className={`text-lg font-bold ${summary.variance < 0 ? "text-red-600" : "text-green-700"}`}>
-                {peso(summary.variance)}
-              </p>
-            </div>
-
-            <div className="p-4 bg-white rounded-xl shadow border">
-              <p className="text-xs text-gray-500">Total Budgets</p>
-              <p className="text-lg font-bold">{peso(summary.total_budgets)}</p>
-            </div>
-
-            <div className="p-4 bg-white rounded-xl shadow border">
-              <p className="text-xs text-gray-500">Cash for Deposit</p>
-              <p className="text-lg font-bold">{peso(summary.cash_for_deposit)}</p>
-            </div>
-
-            <div className="p-4 bg-white rounded-xl shadow border">
-              <p className="text-xs text-gray-500">Transfer Needed</p>
-              <p className="text-lg font-bold text-red-600">
-                {peso(summary.transfer_needed)}
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* -------------------------------------------------- */}
-        {/* RAW FIELDS TABLE */}
-        {/* -------------------------------------------------- */}
-        {rawFields && !loading && (
-          <div className="mt-10">
-            <h2 className="text-lg font-semibold mb-3">Closing Details</h2>
-            <div className="text-sm text-gray-500 mb-2">
-              Status:{" "}
-              <span
-                className={`px-2 py-1 rounded-full ${
-                  lockStatus === "Locked"
-                    ? "bg-yellow-100 text-yellow-700"
-                    : "bg-green-100 text-green-700"
-                }`}
-              >
-                {lockStatus}
-              </span>
-            </div>
-
-            <div className="overflow-x-auto bg-white rounded-xl shadow border">
-              <table className="w-full text-sm">
-                <tbody>
-                  {Object.entries(rawFields).map(([key, value]) => (
-                    <tr key={key} className="border-b last:border-0">
-                      <td className="p-3 font-medium text-gray-700">{key}</td>
-                      <td className="p-3 text-gray-900">{String(value)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* -------------------------------------------------- */}
-        {/* EMPTY STATE */}
-        {/* -------------------------------------------------- */}
-        {!summary && rawFields === null && !loading && storeId && date && (
-          <p className="text-gray-500 mt-6">
-            No closing record found for this store and date.
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">Daily Multi-Store Dashboard</h1>
+          <p className="text-gray-600">
+            Business Date: <strong>{businessDate}</strong>
           </p>
+        </div>
+
+        {loading && <p className="text-gray-500">Loading dashboard…</p>}
+
+        {!loading && storeSummaries.length === 0 && (
+          <p className="text-gray-500">No stores available.</p>
         )}
+
+        {/* Store-by-store blocks */}
+        {!loading &&
+          storeSummaries.map((s, idx) => (
+            <div
+              key={idx}
+              className="bg-white border rounded-xl shadow-sm p-6 space-y-6"
+            >
+              {/* Store header */}
+              <h2 className="text-xl font-semibold">{s.storeName}</h2>
+
+              {/* Missing state */}
+              {s.missing && (
+                <p className="text-sm text-red-600">
+                  Closing not submitted for this date.
+                </p>
+              )}
+
+              {/* Summary cards */}
+              {!s.missing && s.summary && (
+                <div className="grid md:grid-cols-4 xl:grid-cols-8 gap-4">
+
+                  <SummaryCard label="Variance" value={peso(s.summary.variance)} red={s.summary.variance < 0} />
+
+                  <SummaryCard label="Total Budgets" value={peso(s.summary.total_budgets)} />
+                  <SummaryCard label="Kitchen Budget" value={peso(s.summary.kitchen_budget || 0)} />
+                  <SummaryCard label="Bar Budget" value={peso(s.summary.bar_budget || 0)} />
+                  <SummaryCard label="Non-Food Budget" value={peso(s.summary.non_food_budget || 0)} />
+                  <SummaryCard label="Staff Meal Budget" value={peso(s.summary.staff_meal_budget || 0)} />
+
+                  <SummaryCard label="Cash for Deposit" value={peso(s.summary.cash_for_deposit)} />
+                  <SummaryCard label="Transfer Needed" value={peso(s.summary.transfer_needed)} red />
+
+                </div>
+              )}
+            </div>
+          ))}
       </div>
     </AdminLayout>
+  );
+}
+
+
+// --------------------------------------------
+// Summary Card Component
+// --------------------------------------------
+function SummaryCard({
+  label,
+  value,
+  red,
+}: {
+  label: string;
+  value: string;
+  red?: boolean;
+}) {
+  return (
+    <div className="p-4 bg-white border rounded-lg shadow-sm">
+      <p className="text-xs text-gray-500">{label}</p>
+      <p className={`text-lg font-bold ${red ? "text-red-600" : "text-gray-900"}`}>
+        {value}
+      </p>
+    </div>
   );
 }
