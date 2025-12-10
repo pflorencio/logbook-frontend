@@ -2,7 +2,9 @@
 import React, { useEffect, useState } from "react";
 import AdminLayout from "@/components/AdminLayout";
 import { fetchClosings } from "@/lib/api";
-import ClosingDetailsTable from "@/components/ClosingDetailsTable"; // NEW component
+import ClosingDetailsTable from "@/components/ClosingDetailsTable";
+import StatusBadge from "@/components/StatusBadge";
+import VerifyControls from "@/components/VerifyControls";
 
 export default function AdminReports() {
   const [store, setStore] = useState("");
@@ -11,16 +13,19 @@ export default function AdminReports() {
   const [closing, setClosing] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Session data (store access restrictions)
   const sessionRaw = localStorage.getItem("session");
   const session = sessionRaw ? JSON.parse(sessionRaw) : {};
   const storeAccess = session.storeAccess || [];
 
+  // Auto-select store if user only has access to one
   useEffect(() => {
     if (storeAccess.length === 1) {
       setStore(storeAccess[0].id);
     }
   }, []);
 
+  // Load the report based on store + date
   async function loadReport() {
     if (!store || !businessDate) return;
 
@@ -89,11 +94,34 @@ export default function AdminReports() {
       </div>
 
       {/* Results */}
-      <div className="mt-6">
+      <div className="mt-6 space-y-6">
         {error && <p className="text-red-500">{error}</p>}
 
         {!error && closing && (
-          <ClosingDetailsTable record={closing} />
+          <>
+            {/* Status Badge */}
+            <div className="flex items-center gap-3 mb-2">
+              <StatusBadge status={closing.fields["Verified Status"]} />
+            </div>
+
+            {/* Verification Notes (visible card) */}
+            {"Verification Notes" in closing.fields && (
+              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
+                <h3 className="font-semibold text-gray-800 mb-1">
+                  Manager Notes:
+                </h3>
+                <p className="text-gray-700 whitespace-pre-line">
+                  {closing.fields["Verification Notes"]?.trim() || "No notes added."}
+                </p>
+              </div>
+            )}
+
+            {/* Full Closing Table */}
+            <ClosingDetailsTable record={closing} />
+
+            {/* Verification Controls (Verify / Needs Update + Notes box) */}
+            <VerifyControls record={closing} />
+          </>
         )}
       </div>
     </AdminLayout>

@@ -39,6 +39,7 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
         <h3 className="font-semibold text-gray-800 mb-3">Sales & Payments</h3>
         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
           {row("Total Sales", peso(f["Total Sales"]))}
+          {row("Net Sales", peso(f["Net Sales"]))}
           {row("Cash Payments", peso(f["Cash Payments"]))}
           {row("Card Payments", peso(f["Card Payments"]))}
           {row("Digital Payments", peso(f["Digital Payments"]))}
@@ -48,6 +49,7 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
           {row("Marketing Expenses", peso(f["Marketing Expenses"]))}
         </div>
       </section>
+
 
       {/* ---------- BUDGETS ---------- */}
       <section>
@@ -70,7 +72,6 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
           {row("Cash Float", peso(f["Cash Float"]))}
           {row("Cash for Deposit", peso(f["Cash for Deposit"]))}
           {row("Transfer Needed", peso(f["Transfer Needed"]))}
-          {row("Net Sales", peso(f["Net Sales"]))}
         </div>
       </section>
 

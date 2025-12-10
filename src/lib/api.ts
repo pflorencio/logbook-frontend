@@ -178,11 +178,12 @@ export async function unlockRecord(recordId: string, pin: string) {
 export async function verifyRecord(
   record_id: string,
   status: string,
-  verified_by: string
+  verified_by: string,
+  notes?: string
 ) {
   return apiRequest(`${BACKEND_URL}/verify`, {
     method: "POST",
-    body: JSON.stringify({ record_id, status, verified_by }),
+    body: JSON.stringify({ record_id, status, verified_by, notes }),
   });
 }
 
