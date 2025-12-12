@@ -5,10 +5,17 @@ import { fetchClosings } from "@/lib/api";
 import ClosingDetailsTable from "@/components/ClosingDetailsTable";
 import StatusBadge from "@/components/StatusBadge";
 import VerifyControls from "@/components/VerifyControls";
+import { useSearchParams } from "react-router-dom";
 
 export default function AdminReports() {
-  const [store, setStore] = useState("");
-  const [businessDate, setBusinessDate] = useState("");
+  const [searchParams] = useSearchParams();
+
+  // URL params from /admin/reports?store=___&date=___
+  const urlStore = searchParams.get("store") || "";
+  const urlDate = searchParams.get("date") || "";
+
+  const [store, setStore] = useState(urlStore);
+  const [businessDate, setBusinessDate] = useState(urlDate);
   const [loading, setLoading] = useState(false);
   const [closing, setClosing] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -18,22 +25,32 @@ export default function AdminReports() {
   const session = sessionRaw ? JSON.parse(sessionRaw) : {};
   const storeAccess = session.storeAccess || [];
 
-  // Auto-select store if user only has access to one
+  // If arriving from Verification Queue, auto-load report
   useEffect(() => {
-    if (storeAccess.length === 1) {
-      setStore(storeAccess[0].id);
+    if (urlStore && urlDate) {
+      loadReport(urlStore, urlDate);
     }
   }, []);
 
-  // Load the report based on store + date
-  async function loadReport() {
-    if (!store || !businessDate) return;
+  // Auto-select store if user has only 1 (normal behaviour)
+  useEffect(() => {
+    if (!urlStore && storeAccess.length === 1) {
+      setStore(storeAccess[0].id);
+    }
+  }, [storeAccess]);
+
+  // Load the report (store + date)
+  async function loadReport(selectedStore?: string, selectedDate?: string) {
+    const s = selectedStore || store;
+    const d = selectedDate || businessDate;
+
+    if (!s || !d) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetchClosings(businessDate, store);
+      const res = await fetchClosings(d, s);
 
       if (!res.records || res.records.length === 0) {
         setError("No closing record found for this date.");
@@ -85,7 +102,7 @@ export default function AdminReports() {
         </div>
 
         <button
-          onClick={loadReport}
+          onClick={() => loadReport()}
           disabled={loading}
           className="px-4 py-2 bg-blue-600 text-white rounded-md"
         >
@@ -104,7 +121,7 @@ export default function AdminReports() {
               <StatusBadge status={closing.fields["Verified Status"]} />
             </div>
 
-            {/* Verification Notes (visible card) */}
+            {/* Verification Notes */}
             {"Verification Notes" in closing.fields && (
               <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
                 <h3 className="font-semibold text-gray-800 mb-1">
@@ -119,8 +136,8 @@ export default function AdminReports() {
             {/* Full Closing Table */}
             <ClosingDetailsTable record={closing} />
 
-            {/* Verification Controls (Verify / Needs Update + Notes box) */}
-            <VerifyControls 
+            {/* Verify Controls */}
+            <VerifyControls
               record={closing}
               onUpdate={(updatedRecord) => setClosing(updatedRecord)}
             />
