@@ -216,8 +216,12 @@ export async function verifyClosing(payload: {
 // Fetch all closings that need verification
 export async function fetchPendingClosings() {
   try {
-    const res = await fetch(`${API_BASE}/closings/pending`);
+    const url = `${BACKEND_URL}/closings/pending`;
+    console.log("➡️ Fetching pending closings:", url);
+
+    const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to load pending verifications");
+
     return await res.json();
   } catch (err) {
     console.error("fetchPendingClosings error:", err);
