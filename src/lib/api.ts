@@ -216,7 +216,7 @@ export async function verifyClosing(payload: {
 // Fetch all closings that need verification
 export async function fetchPendingClosings() {
   try {
-    const url = `${BACKEND_URL}/closings/pending`;
+    const url = `${BACKEND_URL}/verification-queue`;
     console.log("➡️ Fetching pending closings:", url);
 
     const res = await fetch(url);
