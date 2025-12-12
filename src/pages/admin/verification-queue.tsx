@@ -73,23 +73,24 @@ export default function VerificationQueue() {
               {records.map((rec: any) => {
                 const f = rec.fields;
 
-                const date = f["Date"];
-                const storeName = f["Store"];
+                // Correct Airtable fields
+                const businessDate = f["Business Date"];
+                const storeId = f["Store"]; // this is an Airtable record ID
                 const status = f["Verified Status"];
                 const submittedBy = f["Submitted By"] ?? "—";
 
                 return (
                   <tr key={rec.id} className="border-b text-sm">
-                    <td className="py-3">{date}</td>
-                    <td className="py-3">{storeName}</td>
+                    <td className="py-3">{businessDate}</td>
+                    <td className="py-3">{storeId}</td>
                     <td className="py-3">{getStatusBadge(status)}</td>
                     <td className="py-3">{submittedBy}</td>
 
                     <td className="py-3 text-right">
                       <Link
-                        to={`/admin/reports?store=${encodeURIComponent(
-                          storeName
-                        )}&date=${encodeURIComponent(date)}`}
+                        to={`/admin/reports?store_id=${encodeURIComponent(
+                          storeId
+                        )}&business_date=${encodeURIComponent(businessDate)}`}
                         className="text-blue-600 hover:underline font-medium"
                       >
                         Review →
