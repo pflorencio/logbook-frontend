@@ -217,7 +217,7 @@ export async function verifyClosing(payload: {
 export async function fetchPendingClosings() {
   try {
     const url = `${BACKEND_URL}/verification-queue`;
-    console.log("➡️ Fetching pending closings:", url);
+    console.log("🧨 API TEST CALL →", url);
 
     const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to load pending verifications");
