@@ -63,6 +63,11 @@ const VerificationQueue: React.FC = () => {
     );
   };
 
+  const truncate = (text: string, length = 30) => {
+    if (!text) return "";
+    return text.length > length ? text.substring(0, length) + "…" : text;
+  };
+
   return (
     <AdminLayout>
       <h1 className="text-2xl font-semibold mb-2">Verification Queue</h1>
@@ -84,6 +89,10 @@ const VerificationQueue: React.FC = () => {
                 <th className="py-2">Store</th>
                 <th className="py-2">Status</th>
                 <th className="py-2">Submitted By</th>
+
+                {/* NEW MANAGER NOTES COLUMN */}
+                <th className="py-2">Manager Notes</th>
+
                 <th className="py-2 text-right">Action</th>
               </tr>
             </thead>
@@ -91,7 +100,7 @@ const VerificationQueue: React.FC = () => {
             <tbody>
               {records.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-6 text-gray-500 text-center">
+                  <td colSpan={6} className="py-6 text-gray-500 text-center">
                     🎉 All closings are fully verified!
                   </td>
                 </tr>
@@ -122,6 +131,8 @@ const VerificationQueue: React.FC = () => {
                 const status: string = f["Verified Status"] || "Pending";
                 const submittedBy: string = f["Submitted By"] || "—";
 
+                const notes: string = f["Verification Notes"] || "";
+
                 const hasLink = !!storeId && !!rawDate;
 
                 return (
@@ -130,6 +141,17 @@ const VerificationQueue: React.FC = () => {
                     <td className="py-3">{displayStoreName}</td>
                     <td className="py-3">{getStatusBadge(status)}</td>
                     <td className="py-3">{submittedBy}</td>
+
+                    {/* NEW MANAGER NOTES CELL */}
+                    <td className="py-3 max-w-xs">
+                      {notes ? (
+                        <span title={notes} className="text-gray-700">
+                          {truncate(notes, 40)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 italic">—</span>
+                      )}
+                    </td>
 
                     <td className="py-3 text-right">
                       {hasLink ? (
