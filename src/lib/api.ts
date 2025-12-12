@@ -187,6 +187,32 @@ export async function verifyRecord(
   });
 }
 
+// -----------------------------
+// VERIFY CLOSING STATUS
+// -----------------------------
+export async function verifyClosing(payload: {
+  record_id: string;
+  status: string;
+  verified_by: string;
+  notes: string;
+}) {
+  const res = await fetch(`${BACKEND_URL}/verify`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("❌ Verify API error:", errorText);
+    throw new Error("Failed to update verification status");
+  }
+
+  return res.json();
+}
+
 // -------------------------------------------------------------
 // REPORTING (Daily Summary)
 // -------------------------------------------------------------

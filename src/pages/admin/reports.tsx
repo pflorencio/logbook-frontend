@@ -120,7 +120,10 @@ export default function AdminReports() {
             <ClosingDetailsTable record={closing} />
 
             {/* Verification Controls (Verify / Needs Update + Notes box) */}
-            <VerifyControls record={closing} />
+            <VerifyControls 
+              record={closing}
+              onUpdate={(updatedRecord) => setClosing(updatedRecord)}
+            />
           </>
         )}
       </div>
