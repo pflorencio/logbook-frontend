@@ -1,56 +1,42 @@
 // src/pages/admin/reports.tsx
 import React, { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import AdminLayout from "@/components/AdminLayout";
 import { fetchClosings } from "@/lib/api";
 import ClosingDetailsTable from "@/components/ClosingDetailsTable";
 import StatusBadge from "@/components/StatusBadge";
 import VerifyControls from "@/components/VerifyControls";
-import { useSearchParams } from "react-router-dom";
 
 export default function AdminReports() {
-  const [searchParams] = useSearchParams();
-
-  // URL params from /admin/reports?store=___&date=___
-  const urlStore = searchParams.get("store") || "";
-  const urlDate = searchParams.get("date") || "";
-
-  const [store, setStore] = useState(urlStore);
-  const [businessDate, setBusinessDate] = useState(urlDate);
+  const [store, setStore] = useState("");
+  const [businessDate, setBusinessDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [closing, setClosing] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Session data (store access restrictions)
+  const location = useLocation();
+
+  // Session data
   const sessionRaw = localStorage.getItem("session");
   const session = sessionRaw ? JSON.parse(sessionRaw) : {};
   const storeAccess = session.storeAccess || [];
 
-  // If arriving from Verification Queue, auto-load report
+  // Auto-select store if only one is available
   useEffect(() => {
-    if (urlStore && urlDate) {
-      loadReport(urlStore, urlDate);
+    if (storeAccess.length === 1) {
+      setStore(storeAccess[0].id);
     }
   }, []);
 
-  // Auto-select store if user has only 1 (normal behaviour)
-  useEffect(() => {
-    if (!urlStore && storeAccess.length === 1) {
-      setStore(storeAccess[0].id);
-    }
-  }, [storeAccess]);
-
-  // Load the report (store + date)
-  async function loadReport(selectedStore?: string, selectedDate?: string) {
-    const s = selectedStore || store;
-    const d = selectedDate || businessDate;
-
-    if (!s || !d) return;
+  // Load the report
+  async function loadReport(selectedStore = store, selectedDate = businessDate) {
+    if (!selectedStore || !selectedDate) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetchClosings(d, s);
+      const res = await fetchClosings(selectedDate, selectedStore);
 
       if (!res.records || res.records.length === 0) {
         setError("No closing record found for this date.");
@@ -65,6 +51,21 @@ export default function AdminReports() {
 
     setLoading(false);
   }
+
+  // ⭐ NEW: Load report automatically if URL contains ?store= & ?date=
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const urlStore = params.get("store");
+    const urlDate = params.get("date");
+
+    if (urlStore && urlDate) {
+      setStore(urlStore);
+      setBusinessDate(urlDate);
+
+      // Auto-load report
+      loadReport(urlStore, urlDate);
+    }
+  }, [location.search]);
 
   return (
     <AdminLayout>
@@ -116,27 +117,23 @@ export default function AdminReports() {
 
         {!error && closing && (
           <>
-            {/* Status Badge */}
             <div className="flex items-center gap-3 mb-2">
               <StatusBadge status={closing.fields["Verified Status"]} />
             </div>
 
-            {/* Verification Notes */}
-            {"Verification Notes" in closing.fields && (
+            {closing.fields["Verification Notes"] && (
               <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
                 <h3 className="font-semibold text-gray-800 mb-1">
                   Manager Notes:
                 </h3>
                 <p className="text-gray-700 whitespace-pre-line">
-                  {closing.fields["Verification Notes"]?.trim() || "No notes added."}
+                  {closing.fields["Verification Notes"]?.trim()}
                 </p>
               </div>
             )}
 
-            {/* Full Closing Table */}
             <ClosingDetailsTable record={closing} />
 
-            {/* Verify Controls */}
             <VerifyControls
               record={closing}
               onUpdate={(updatedRecord) => setClosing(updatedRecord)}
