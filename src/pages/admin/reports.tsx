@@ -1,42 +1,61 @@
 // src/pages/admin/reports.tsx
 import React, { useEffect, useState } from "react";
-import { useLocation } from "react-router-dom";
 import AdminLayout from "@/components/AdminLayout";
 import { fetchClosings } from "@/lib/api";
 import ClosingDetailsTable from "@/components/ClosingDetailsTable";
 import StatusBadge from "@/components/StatusBadge";
 import VerifyControls from "@/components/VerifyControls";
 
-export default function AdminReports() {
+const AdminReports: React.FC = () => {
   const [store, setStore] = useState("");
   const [businessDate, setBusinessDate] = useState("");
   const [loading, setLoading] = useState(false);
   const [closing, setClosing] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const location = useLocation();
-
-  // Session data
-  const sessionRaw = localStorage.getItem("session");
+  // Session data (store access restrictions)
+  const sessionRaw =
+    typeof window !== "undefined" ? localStorage.getItem("session") : null;
   const session = sessionRaw ? JSON.parse(sessionRaw) : {};
-  const storeAccess = session.storeAccess || [];
+  const storeAccess = session.storeAccess || session.store_access || [];
 
-  // Auto-select store if only one is available
+  // Read query params from URL when page mounts
   useEffect(() => {
-    if (storeAccess.length === 1) {
+    if (typeof window === "undefined") return;
+
+    const params = new URLSearchParams(window.location.search);
+    const storeFromQuery = params.get("store_id");
+    const dateFromQuery = params.get("business_date");
+
+    if (storeFromQuery && storeFromQuery !== "undefined") {
+      setStore(storeFromQuery);
+    } else if (storeAccess.length === 1) {
+      // Fallback: auto-select single store
       setStore(storeAccess[0].id);
+    }
+
+    if (dateFromQuery && dateFromQuery !== "undefined") {
+      setBusinessDate(dateFromQuery);
     }
   }, []);
 
-  // Load the report
-  async function loadReport(selectedStore = store, selectedDate = businessDate) {
-    if (!selectedStore || !selectedDate) return;
+  // Whenever both store + date are set, auto-load report
+  useEffect(() => {
+    if (store && businessDate) {
+      loadReport();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [store, businessDate]);
+
+  // Load the report based on store + date
+  async function loadReport() {
+    if (!store || !businessDate) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const res = await fetchClosings(selectedDate, selectedStore);
+      const res = await fetchClosings(businessDate, store);
 
       if (!res.records || res.records.length === 0) {
         setError("No closing record found for this date.");
@@ -51,21 +70,6 @@ export default function AdminReports() {
 
     setLoading(false);
   }
-
-  // ⭐ NEW: Load report automatically if URL contains ?store= & ?date=
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const urlStore = params.get("store");
-    const urlDate = params.get("date");
-
-    if (urlStore && urlDate) {
-      setStore(urlStore);
-      setBusinessDate(urlDate);
-
-      // Auto-load report
-      loadReport(urlStore, urlDate);
-    }
-  }, [location.search]);
 
   return (
     <AdminLayout>
@@ -103,7 +107,7 @@ export default function AdminReports() {
         </div>
 
         <button
-          onClick={() => loadReport()}
+          onClick={loadReport}
           disabled={loading}
           className="px-4 py-2 bg-blue-600 text-white rounded-md"
         >
@@ -117,23 +121,28 @@ export default function AdminReports() {
 
         {!error && closing && (
           <>
+            {/* Status Badge */}
             <div className="flex items-center gap-3 mb-2">
               <StatusBadge status={closing.fields["Verified Status"]} />
             </div>
 
-            {closing.fields["Verification Notes"] && (
+            {/* Verification Notes (visible card) */}
+            {"Verification Notes" in closing.fields && (
               <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
                 <h3 className="font-semibold text-gray-800 mb-1">
                   Manager Notes:
                 </h3>
                 <p className="text-gray-700 whitespace-pre-line">
-                  {closing.fields["Verification Notes"]?.trim()}
+                  {closing.fields["Verification Notes"]?.trim() ||
+                    "No notes added."}
                 </p>
               </div>
             )}
 
+            {/* Full Closing Table */}
             <ClosingDetailsTable record={closing} />
 
+            {/* Verification Controls */}
             <VerifyControls
               record={closing}
               onUpdate={(updatedRecord) => setClosing(updatedRecord)}
@@ -143,4 +152,6 @@ export default function AdminReports() {
       </div>
     </AdminLayout>
   );
-}
+};
+
+export default AdminReports;
