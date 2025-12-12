@@ -64,6 +64,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </Link>
 
           <Link
+            to="/admin/verification-queue"
+            className={`block px-4 py-2 rounded-lg ${isActive("/admin/verification-queue")}`}
+          >
+            📝 For Verification
+          </Link>
+
+          <Link
             to="/admin/reports"
             className={`block px-4 py-2 rounded-lg ${isActive("/admin/reports")}`}
           >

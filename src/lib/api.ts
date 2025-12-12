@@ -213,6 +213,18 @@ export async function verifyClosing(payload: {
   return res.json();
 }
 
+// Fetch all closings that need verification
+export async function fetchPendingClosings() {
+  try {
+    const res = await fetch(`${API_BASE}/closings/pending`);
+    if (!res.ok) throw new Error("Failed to load pending verifications");
+    return await res.json();
+  } catch (err) {
+    console.error("fetchPendingClosings error:", err);
+    throw err;
+  }
+}
+
 // -------------------------------------------------------------
 // REPORTING (Daily Summary)
 // -------------------------------------------------------------

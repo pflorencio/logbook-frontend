@@ -21,6 +21,7 @@ import AdminHome from "./pages/admin/index";
 import AdminUsers from "./pages/admin/users";
 import AdminReports from "./pages/admin/reports";
 import AdminSettings from "./pages/admin/settings";
+import VerificationQueue from "./pages/admin/verification-queue"; // ⭐ NEW
 
 // ⭐ NEW: Admin Login
 import AdminLogin from "./pages/admin-login";
@@ -130,6 +131,15 @@ export default function App() {
             element={
               <ProtectedRoute roles={["admin", "manager"]}>
                 <AdminReports />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/verification-queue"
+            element={
+              <ProtectedRoute roles={["admin", "manager"]}>
+                <VerificationQueue />
               </ProtectedRoute>
             }
           />
