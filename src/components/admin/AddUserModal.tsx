@@ -14,14 +14,13 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
   const [active, setActive] = useState(true);
 
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
-  const [storeId, setStoreId] = useState("");
   const [storeAccess, setStoreAccess] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
   // ----------------------------------------------------
-  // Load stores on open
+  // Load stores when modal opens
   // ----------------------------------------------------
   useEffect(() => {
     if (!open) return;
@@ -30,8 +29,10 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
       try {
         const list = await fetchStores();
         setStores(list);
+        setError("");
       } catch (err) {
         console.error("❌ Failed loading stores:", err);
+        setError("Failed to load stores.");
       }
     }
 
@@ -39,11 +40,25 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
   }, [open]);
 
   // ----------------------------------------------------
+  // Reset state when modal closes
+  // ----------------------------------------------------
+  useEffect(() => {
+    if (open) return;
+
+    setName("");
+    setPin("");
+    setRole("cashier");
+    setActive(true);
+    setStoreAccess([]);
+    setError("");
+    setLoading(false);
+  }, [open]);
+
+  // ----------------------------------------------------
   // Reset store access when role changes
   // ----------------------------------------------------
   useEffect(() => {
     setStoreAccess([]);
-    setStoreId("");
   }, [role]);
 
   // ----------------------------------------------------
@@ -100,8 +115,7 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
         pin,
         role,
         active,
-        store_id: storeId || null,
-        store_access: storeAccess,
+        store_access: storeAccess, // ✅ single source of truth
       };
 
       await createUser(payload);
@@ -109,7 +123,7 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
       onCreated();
       onClose();
     } catch (err) {
-      console.error(err);
+      console.error("❌ Create user error:", err);
       setError("Failed to create user.");
     } finally {
       setLoading(false);

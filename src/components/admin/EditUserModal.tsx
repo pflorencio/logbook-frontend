@@ -34,10 +34,12 @@ export default function EditUserModal({
   const [role, setRole] = useState<"cashier" | "manager" | "admin">("cashier");
   const [active, setActive] = useState(true);
 
-  const [primaryStore, setPrimaryStore] = useState<string>("");
   const [storeAccess, setStoreAccess] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
+  // ----------------------------------------------------
+  // Load user data on open
+  // ----------------------------------------------------
   useEffect(() => {
     if (!user) return;
 
@@ -45,15 +47,17 @@ export default function EditUserModal({
     setPin(user.pin || "");
     setRole(user.role);
     setActive(user.active);
-    setPrimaryStore(user.store?.id || "");
     setStoreAccess(user.store_access.map((s) => s.id));
   }, [user]);
 
+  // Reset store access when role changes
   useEffect(() => {
     setStoreAccess([]);
-    setPrimaryStore("");
   }, [role]);
 
+  // ----------------------------------------------------
+  // Role helper text
+  // ----------------------------------------------------
   const roleHelper = useMemo(() => {
     if (role === "cashier") {
       return "Cashiers can only access one store and submit closings.";
@@ -67,6 +71,9 @@ export default function EditUserModal({
     return "";
   }, [role]);
 
+  // ----------------------------------------------------
+  // Soft validation
+  // ----------------------------------------------------
   const isValid =
     name.trim().length > 0 &&
     pin.length === 4 &&
@@ -74,14 +81,20 @@ export default function EditUserModal({
       (role === "cashier" && storeAccess.length === 1) ||
       (role === "manager" && storeAccess.length >= 1));
 
+  // ----------------------------------------------------
+  // Toggle store access
+  // ----------------------------------------------------
   const toggleStoreAccess = (id: string) => {
     setStoreAccess((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
     );
   };
 
+  // ----------------------------------------------------
+  // Save
+  // ----------------------------------------------------
   const handleSave = async () => {
-    if (!isValid) return;
+    if (!isValid || !user) return;
 
     try {
       setSaving(true);
@@ -91,11 +104,10 @@ export default function EditUserModal({
         pin,
         role,
         active,
-        store_id: primaryStore || null,
-        store_access_ids: storeAccess,
+        store_access: storeAccess, // ✅ consistent with backend
       };
 
-      await updateUser(user!.user_id, payload);
+      await updateUser(user.user_id, payload);
 
       onUpdated();
       onClose();

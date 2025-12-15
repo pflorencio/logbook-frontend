@@ -185,10 +185,9 @@ const AdminUsersPage: React.FC = () => {
 
       {/* ADD USER MODAL */}
       <AddUserModal
-        isOpen={addOpen}
+        open={addOpen}
         onClose={() => setAddOpen(false)}
-        onSaved={handleAfterSave}
-        storeOptions={storeOptions}
+        onCreated={handleAfterSave}
       />
 
       {/* EDIT USER MODAL */}
