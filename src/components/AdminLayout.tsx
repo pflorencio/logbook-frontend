@@ -77,12 +77,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             📈 Reports
           </Link>
 
-          <Link
-            to="/admin/users"
-            className={`block px-4 py-2 rounded-lg ${isActive("/admin/users")}`}
-          >
-            👥 Users & Access
-          </Link>
+          {/* 🔐 ADMIN ONLY */}
+          {role === "admin" && (
+            <Link
+              to="/admin/users"
+              className={`block px-4 py-2 rounded-lg ${isActive("/admin/users")}`}
+            >
+              👥 Users & Access
+            </Link>
+          )}
 
           <Link
             to="/admin/settings"
@@ -91,7 +94,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             ⚙️ System Settings
           </Link>
 
-          {/* Closing-related routes */}
+          {/* Closing-related routes (context only, not clickable) */}
           {location.pathname.startsWith("/admin/closing") && (
             <div className={`block px-4 py-2 rounded-lg ${isMatch("/admin/closing")}`}>
               🧾 Closing Record
@@ -138,12 +141,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Top Header */}
         <header className="w-full bg-white border-b px-8 py-4 flex items-center justify-between shadow-sm">
-
           <div>
             <p className="text-sm text-gray-500">Current Store</p>
-            <p className="font-semibold text-gray-900">
-              {store}
-            </p>
+            <p className="font-semibold text-gray-900">{store}</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -151,7 +151,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {role}
             </span>
           </div>
-
         </header>
 
         {/* Page Content */}

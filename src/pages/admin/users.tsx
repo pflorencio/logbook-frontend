@@ -171,7 +171,12 @@ const AdminUsersPage: React.FC = () => {
 
                   <td className="px-4 py-3 text-right">
                     <button
-                      onClick={() => handleOpenEdit(u)}
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleOpenEdit(u);
+                      }}
                       className="px-3 py-1 rounded-full border border-gray-300 text-xs text-gray-700 hover:bg-gray-100"
                     >
                       Edit
