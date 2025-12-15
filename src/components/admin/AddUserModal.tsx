@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createUser, fetchStores } from "@/lib/api";
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
 export default function AddUserModal({ open, onClose, onCreated }: Props) {
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
-  const [role, setRole] = useState("cashier");
+  const [role, setRole] = useState<"cashier" | "manager" | "admin">("cashier");
   const [active, setActive] = useState(true);
 
   const [stores, setStores] = useState<{ id: string; name: string }[]>([]);
@@ -20,7 +20,9 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // ----------------------------------------------------
   // Load stores on open
+  // ----------------------------------------------------
   useEffect(() => {
     if (!open) return;
 
@@ -36,21 +38,57 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
     load();
   }, [open]);
 
+  // ----------------------------------------------------
+  // Reset store access when role changes
+  // ----------------------------------------------------
+  useEffect(() => {
+    setStoreAccess([]);
+    setStoreId("");
+  }, [role]);
+
+  // ----------------------------------------------------
+  // Toggle store access
+  // ----------------------------------------------------
   const toggleStoreAccess = (id: string) => {
     setStoreAccess((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
+  // ----------------------------------------------------
+  // Role helper text
+  // ----------------------------------------------------
+  const roleHelper = useMemo(() => {
+    if (role === "cashier") {
+      return "Cashiers can only access one store and submit closings.";
+    }
+    if (role === "manager") {
+      return "Managers can access multiple stores and verify closings.";
+    }
+    if (role === "admin") {
+      return "Admins have full system access. Store assignment is optional.";
+    }
+    return "";
+  }, [role]);
+
+  // ----------------------------------------------------
+  // Soft validation
+  // ----------------------------------------------------
+  const isValid =
+    name.trim().length > 0 &&
+    pin.length === 4 &&
+    (role === "admin" ||
+      (role === "cashier" && storeAccess.length === 1) ||
+      (role === "manager" && storeAccess.length >= 1));
+
+  // ----------------------------------------------------
+  // Create user
+  // ----------------------------------------------------
   const handleCreate = async () => {
     setError("");
 
-    if (!name.trim()) {
-      setError("Name is required.");
-      return;
-    }
-    if (pin.length !== 4) {
-      setError("PIN must be 4 digits.");
+    if (!isValid) {
+      setError("Please complete all required fields correctly.");
       return;
     }
 
@@ -83,7 +121,6 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
       <div className="bg-white w-full max-w-md rounded-xl p-6 shadow-lg">
-
         <h2 className="text-xl font-bold mb-4">Add New User</h2>
 
         {/* NAME */}
@@ -110,13 +147,16 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
         <label className="block mb-2 text-sm font-medium">Role</label>
         <select
           value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="w-full border px-3 py-2 rounded mb-4"
+          onChange={(e) =>
+            setRole(e.target.value as "cashier" | "manager" | "admin")
+          }
+          className="w-full border px-3 py-2 rounded"
         >
           <option value="cashier">Cashier</option>
           <option value="manager">Manager</option>
           <option value="admin">Admin</option>
         </select>
+        <p className="text-xs text-gray-500 mt-1 mb-4">{roleHelper}</p>
 
         {/* ACTIVE */}
         <label className="block mb-2 text-sm font-medium">Status</label>
@@ -129,35 +169,26 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
           <option value="inactive">Inactive</option>
         </select>
 
-        {/* ASSIGNED STORE */}
-        <label className="block mb-2 text-sm font-medium">Main Store</label>
-        <select
-          value={storeId}
-          onChange={(e) => setStoreId(e.target.value)}
-          className="w-full border px-3 py-2 rounded mb-4"
-        >
-          <option value="">— None —</option>
-          {stores.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.name}
-            </option>
-          ))}
-        </select>
-
         {/* STORE ACCESS */}
-        <label className="block mb-2 text-sm font-medium">Store Access</label>
-        <div className="space-y-2 mb-4">
-          {stores.map((s) => (
-            <label key={s.id} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={storeAccess.includes(s.id)}
-                onChange={() => toggleStoreAccess(s.id)}
-              />
-              <span>{s.name}</span>
+        {role !== "admin" && (
+          <>
+            <label className="block mb-2 text-sm font-medium">
+              Store Access
             </label>
-          ))}
-        </div>
+            <div className="space-y-2 mb-4">
+              {stores.map((s) => (
+                <label key={s.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={storeAccess.includes(s.id)}
+                    onChange={() => toggleStoreAccess(s.id)}
+                  />
+                  <span>{s.name}</span>
+                </label>
+              ))}
+            </div>
+          </>
+        )}
 
         {/* ERROR */}
         {error && <p className="text-red-500 text-sm mb-3">{error}</p>}
@@ -173,8 +204,12 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
 
           <button
             onClick={handleCreate}
-            disabled={loading}
-            className="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+            disabled={!isValid || loading}
+            className={`px-4 py-2 rounded text-white ${
+              isValid
+                ? "bg-blue-600 hover:bg-blue-700"
+                : "bg-gray-400 cursor-not-allowed"
+            }`}
           >
             {loading ? "Saving…" : "Create User"}
           </button>

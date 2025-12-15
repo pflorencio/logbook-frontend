@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { updateUser } from "@/lib/api";
 
 interface StoreRef {
@@ -20,7 +20,7 @@ interface EditUserModalProps {
   user: User | null;
   stores: StoreRef[];
   onClose: () => void;
-  onUpdated: () => void; // refresh list
+  onUpdated: () => void;
 }
 
 export default function EditUserModal({
@@ -36,12 +36,8 @@ export default function EditUserModal({
 
   const [primaryStore, setPrimaryStore] = useState<string>("");
   const [storeAccess, setStoreAccess] = useState<string[]>([]);
-
   const [saving, setSaving] = useState(false);
 
-  // ----------------------------------------------------
-  // Load data when modal opens
-  // ----------------------------------------------------
   useEffect(() => {
     if (!user) return;
 
@@ -49,25 +45,43 @@ export default function EditUserModal({
     setPin(user.pin || "");
     setRole(user.role);
     setActive(user.active);
-
     setPrimaryStore(user.store?.id || "");
     setStoreAccess(user.store_access.map((s) => s.id));
   }, [user]);
 
-  if (!user) return null;
+  useEffect(() => {
+    setStoreAccess([]);
+    setPrimaryStore("");
+  }, [role]);
 
-  // ----------------------------------------------------
-  // Handle save/update
-  // ----------------------------------------------------
+  const roleHelper = useMemo(() => {
+    if (role === "cashier") {
+      return "Cashiers can only access one store and submit closings.";
+    }
+    if (role === "manager") {
+      return "Managers can access multiple stores and verify closings.";
+    }
+    if (role === "admin") {
+      return "Admins have full system access. Store assignment optional.";
+    }
+    return "";
+  }, [role]);
+
+  const isValid =
+    name.trim().length > 0 &&
+    pin.length === 4 &&
+    (role === "admin" ||
+      (role === "cashier" && storeAccess.length === 1) ||
+      (role === "manager" && storeAccess.length >= 1));
+
+  const toggleStoreAccess = (id: string) => {
+    setStoreAccess((prev) =>
+      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
+    );
+  };
+
   const handleSave = async () => {
-    if (!name.trim()) {
-      alert("Name is required.");
-      return;
-    }
-    if (pin.length !== 4) {
-      alert("PIN must be 4 digits.");
-      return;
-    }
+    if (!isValid) return;
 
     try {
       setSaving(true);
@@ -81,7 +95,7 @@ export default function EditUserModal({
         store_access_ids: storeAccess,
       };
 
-      await updateUser(user.user_id, payload);
+      await updateUser(user!.user_id, payload);
 
       onUpdated();
       onClose();
@@ -93,19 +107,7 @@ export default function EditUserModal({
     }
   };
 
-  // ----------------------------------------------------
-  // Toggle store access
-  // ----------------------------------------------------
-  const toggleStoreAccess = (id: string) => {
-    setStoreAccess((prev) =>
-      prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
-    );
-  };
-
-  // ----------------------------------------------------
-  // REMOVE Access option if it's the Primary Store? (Optional)
-  // You can allow both for flexibility.
-  // ----------------------------------------------------
+  if (!user) return null;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
@@ -151,6 +153,7 @@ export default function EditUserModal({
             <option value="manager">Manager</option>
             <option value="admin">Admin</option>
           </select>
+          <p className="text-xs text-gray-500 mt-1">{roleHelper}</p>
         </div>
 
         {/* ACTIVE */}
@@ -166,43 +169,27 @@ export default function EditUserModal({
           </select>
         </div>
 
-        {/* PRIMARY STORE */}
-        <div>
-          <label className="text-sm font-medium">Primary Store</label>
-          <select
-            className="w-full px-3 py-2 border rounded-lg mt-1"
-            value={primaryStore}
-            onChange={(e) => setPrimaryStore(e.target.value)}
-          >
-            <option value="">No Store Assigned</option>
-            {stores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* STORE ACCESS MULTI SELECT */}
-        <div>
-          <label className="text-sm font-medium">Store Access</label>
-
-          <div className="grid grid-cols-2 gap-2 mt-2">
-            {stores.map((s) => (
-              <label
-                key={s.id}
-                className="flex items-center gap-2 text-sm cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={storeAccess.includes(s.id)}
-                  onChange={() => toggleStoreAccess(s.id)}
-                />
-                {s.name}
-              </label>
-            ))}
+        {/* STORE ACCESS */}
+        {role !== "admin" && (
+          <div>
+            <label className="text-sm font-medium">Store Access</label>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              {stores.map((s) => (
+                <label
+                  key={s.id}
+                  className="flex items-center gap-2 text-sm cursor-pointer"
+                >
+                  <input
+                    type="checkbox"
+                    checked={storeAccess.includes(s.id)}
+                    onChange={() => toggleStoreAccess(s.id)}
+                  />
+                  {s.name}
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ACTION BUTTONS */}
         <div className="flex justify-end gap-3 pt-4">
@@ -215,9 +202,11 @@ export default function EditUserModal({
 
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={!isValid || saving}
             className={`px-5 py-2 rounded-lg text-white ${
-              saving ? "bg-blue-300" : "bg-blue-600 hover:bg-blue-700"
+              isValid
+                ? "bg-blue-600 hover:bg-blue-700"
+                : "bg-gray-400 cursor-not-allowed"
             }`}
           >
             {saving ? "Saving…" : "Save Changes"}
