@@ -1,10 +1,10 @@
 // src/pages/admin/users.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import AdminLayout from "../../components/AdminLayout";
 
 import {
   fetchUsers,
-  updateUser,
   type User,
   type StoreRef,
 } from "@/lib/api";
@@ -36,6 +36,9 @@ function deriveStoreOptions(users: User[]): StoreRef[] {
 // Main Users Page
 // -------------------------------------------------------------
 const AdminUsersPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { id } = useParams(); // ⭐ URL param for edit
+
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -44,7 +47,9 @@ const AdminUsersPage: React.FC = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
 
+  // -------------------------------------------------------------
   // Load users
+  // -------------------------------------------------------------
   const loadUsers = async () => {
     try {
       setLoading(true);
@@ -63,14 +68,34 @@ const AdminUsersPage: React.FC = () => {
     void loadUsers();
   }, []);
 
+  // -------------------------------------------------------------
+  // Auto-open edit modal if /admin/users/:id is visited
+  // -------------------------------------------------------------
+  useEffect(() => {
+    if (!id || users.length === 0) return;
+
+    const found = users.find((u) => u.user_id === id);
+    if (found) {
+      setSelectedUser(found);
+      setEditOpen(true);
+    }
+  }, [id, users]);
+
+  // -------------------------------------------------------------
   // Generate store options
+  // -------------------------------------------------------------
   const storeOptions = useMemo(() => deriveStoreOptions(users), [users]);
 
+  // -------------------------------------------------------------
+  // Open edit (URL-driven)
+  // -------------------------------------------------------------
   const handleOpenEdit = (u: User) => {
-    setSelectedUser(u);
-    setEditOpen(true);
+    navigate(`/admin/users/${u.user_id}`);
   };
 
+  // -------------------------------------------------------------
+  // Refresh after save
+  // -------------------------------------------------------------
   const handleAfterSave = () => {
     void loadUsers();
   };
@@ -100,7 +125,9 @@ const AdminUsersPage: React.FC = () => {
         </div>
       )}
 
-      {/* Users Table */}
+      {/* --------------------------------------------------------- */}
+      {/* USERS TABLE */}
+      {/* --------------------------------------------------------- */}
       <div className="bg-white rounded-xl shadow border border-gray-100 overflow-hidden">
         <table className="min-w-full text-sm">
           <thead className="bg-gray-50 border-b">
@@ -188,20 +215,27 @@ const AdminUsersPage: React.FC = () => {
         </table>
       </div>
 
+      {/* --------------------------------------------------------- */}
       {/* ADD USER MODAL */}
+      {/* --------------------------------------------------------- */}
       <AddUserModal
         open={addOpen}
         onClose={() => setAddOpen(false)}
         onCreated={handleAfterSave}
       />
 
+      {/* --------------------------------------------------------- */}
       {/* EDIT USER MODAL */}
+      {/* --------------------------------------------------------- */}
       <EditUserModal
-        isOpen={editOpen}
-        onClose={() => setEditOpen(false)}
-        onSaved={handleAfterSave}
         user={selectedUser}
-        storeOptions={storeOptions}
+        stores={storeOptions}
+        onUpdated={handleAfterSave}
+        onClose={() => {
+          setEditOpen(false);
+          setSelectedUser(null);
+          navigate("/admin/users");
+        }}
       />
     </AdminLayout>
   );

@@ -21,15 +21,14 @@ import AdminHome from "./pages/admin/index";
 import AdminUsers from "./pages/admin/users";
 import AdminReports from "./pages/admin/reports";
 import AdminSettings from "./pages/admin/settings";
-import VerificationQueue from "./pages/admin/verification-queue"; // ⭐ NEW
+import VerificationQueue from "./pages/admin/verification-queue";
 
-// ⭐ NEW: Admin Login
+// Admin Login
 import AdminLogin from "./pages/admin-login";
 
-// ⭐ NEW: Closing Record & Verification Pages
+// Closing / Verification
 import RecordView from "./pages/admin/closing/RecordView";
 import VerifyClosing from "./pages/admin/verify/VerifyClosing";
-
 
 // -------------------------------------------------------
 // ⭐ SmartRedirect — sends user based on role
@@ -55,7 +54,6 @@ function SmartRedirect() {
   return <Navigate to="/cashier" replace />;
 }
 
-
 // -------------------------------------------------------
 // APP ROUTER
 // -------------------------------------------------------
@@ -63,7 +61,6 @@ export default function App() {
   return (
     <Router>
       <div className="min-h-screen flex flex-col">
-
         <Routes>
           {/* ---------- PUBLIC ROUTES ---------- */}
           <Route path="/login" element={<Login />} />
@@ -79,7 +76,7 @@ export default function App() {
             }
           />
 
-          {/* ---------- CASHIER ROUTES (cashier ONLY) ---------- */}
+          {/* ---------- CASHIER ROUTES ---------- */}
           <Route
             path="/cashier"
             element={
@@ -107,7 +104,7 @@ export default function App() {
             }
           />
 
-          {/* ---------- ADMIN ROUTES (manager + admin ONLY) ---------- */}
+          {/* ---------- ADMIN ROUTES ---------- */}
           <Route
             path="/admin"
             element={
@@ -117,8 +114,19 @@ export default function App() {
             }
           />
 
+          {/* USERS LIST */}
           <Route
             path="/admin/users"
+            element={
+              <ProtectedRoute roles={["admin"]}>
+                <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ✅ NEW: USER EDIT (modal-driven, same page) */}
+          <Route
+            path="/admin/users/:id"
             element={
               <ProtectedRoute roles={["admin"]}>
                 <AdminUsers />
@@ -153,7 +161,7 @@ export default function App() {
             }
           />
 
-          {/* ---------- ⭐ NEW ADMIN ROUTES ---------- */}
+          {/* ---------- CLOSING ROUTES ---------- */}
           <Route
             path="/admin/closing/:recordId"
             element={
