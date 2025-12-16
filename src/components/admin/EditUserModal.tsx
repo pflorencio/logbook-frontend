@@ -33,9 +33,17 @@ export default function EditUserModal({
   const [pin, setPin] = useState("");
   const [role, setRole] = useState<"cashier" | "manager" | "admin">("cashier");
   const [active, setActive] = useState(true);
-
   const [storeAccess, setStoreAccess] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+
+  // Snapshot of original state (for dirty check)
+  const [originalState, setOriginalState] = useState<{
+    name: string;
+    pin: string;
+    role: "cashier" | "manager" | "admin";
+    active: boolean;
+    storeAccess: string[];
+  } | null>(null);
 
   // ----------------------------------------------------
   // Load user data on open
@@ -43,15 +51,26 @@ export default function EditUserModal({
   useEffect(() => {
     if (!user) return;
 
-    setName(user.name);
-    setPin(user.pin || "");
-    setRole(user.role);
-    setActive(user.active);
-    setStoreAccess(user.store_access.map((s) => s.id));
+    const initial = {
+      name: user.name,
+      pin: user.pin || "",
+      role: user.role,
+      active: user.active,
+      storeAccess: user.store_access.map((s) => s.id),
+    };
+
+    setName(initial.name);
+    setPin(initial.pin);
+    setRole(initial.role);
+    setActive(initial.active);
+    setStoreAccess(initial.storeAccess);
+
+    setOriginalState(initial);
   }, [user]);
 
   // Reset store access when role changes
   useEffect(() => {
+    if (!originalState) return;
     setStoreAccess([]);
   }, [role]);
 
@@ -82,6 +101,22 @@ export default function EditUserModal({
       (role === "manager" && storeAccess.length >= 1));
 
   // ----------------------------------------------------
+  // Dirty check
+  // ----------------------------------------------------
+  const isDirty = useMemo(() => {
+    if (!originalState) return false;
+
+    return (
+      name !== originalState.name ||
+      pin !== originalState.pin ||
+      role !== originalState.role ||
+      active !== originalState.active ||
+      JSON.stringify(storeAccess) !==
+        JSON.stringify(originalState.storeAccess)
+    );
+  }, [name, pin, role, active, storeAccess, originalState]);
+
+  // ----------------------------------------------------
   // Toggle store access
   // ----------------------------------------------------
   const toggleStoreAccess = (id: string) => {
@@ -94,7 +129,7 @@ export default function EditUserModal({
   // Save
   // ----------------------------------------------------
   const handleSave = async () => {
-    if (!isValid || !user) return;
+    if (!isValid || !isDirty || !user) return;
 
     try {
       setSaving(true);
@@ -214,9 +249,9 @@ export default function EditUserModal({
 
           <button
             onClick={handleSave}
-            disabled={!isValid || saving}
+            disabled={!isValid || !isDirty || saving}
             className={`px-5 py-2 rounded-lg text-white ${
-              isValid
+              isValid && isDirty
                 ? "bg-blue-600 hover:bg-blue-700"
                 : "bg-gray-400 cursor-not-allowed"
             }`}
