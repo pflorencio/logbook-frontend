@@ -31,15 +31,16 @@ export default function EditUserModal({
 }: EditUserModalProps) {
   const [name, setName] = useState("");
   const [pin, setPin] = useState("");
+  const [changingPin, setChangingPin] = useState(false);
+
   const [role, setRole] = useState<"cashier" | "manager" | "admin">("cashier");
   const [active, setActive] = useState(true);
   const [storeAccess, setStoreAccess] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  // Snapshot of original state (for dirty check)
   const [originalState, setOriginalState] = useState<{
     name: string;
-    pin: string;
     role: "cashier" | "manager" | "admin";
     active: boolean;
     storeAccess: string[];
@@ -53,19 +54,20 @@ export default function EditUserModal({
 
     const initial = {
       name: user.name,
-      pin: user.pin || "",
       role: user.role,
       active: user.active,
       storeAccess: user.store_access.map((s) => s.id),
     };
 
     setName(initial.name);
-    setPin(initial.pin);
     setRole(initial.role);
     setActive(initial.active);
     setStoreAccess(initial.storeAccess);
-
     setOriginalState(initial);
+
+    setPin("");
+    setChangingPin(false);
+    setError("");
   }, [user]);
 
   // Reset store access when role changes
@@ -74,51 +76,36 @@ export default function EditUserModal({
     setStoreAccess([]);
   }, [role]);
 
-  // ----------------------------------------------------
-  // Role helper text
-  // ----------------------------------------------------
   const roleHelper = useMemo(() => {
-    if (role === "cashier") {
+    if (role === "cashier")
       return "Cashiers can only access one store and submit closings.";
-    }
-    if (role === "manager") {
+    if (role === "manager")
       return "Managers can access multiple stores and verify closings.";
-    }
-    if (role === "admin") {
+    if (role === "admin")
       return "Admins have full system access. Store assignment optional.";
-    }
     return "";
   }, [role]);
 
-  // ----------------------------------------------------
-  // Soft validation
-  // ----------------------------------------------------
   const isValid =
     name.trim().length > 0 &&
-    pin.length === 4 &&
     (role === "admin" ||
       (role === "cashier" && storeAccess.length === 1) ||
-      (role === "manager" && storeAccess.length >= 1));
+      (role === "manager" && storeAccess.length >= 1)) &&
+    (!changingPin || pin.length === 4);
 
-  // ----------------------------------------------------
-  // Dirty check
-  // ----------------------------------------------------
   const isDirty = useMemo(() => {
     if (!originalState) return false;
 
     return (
       name !== originalState.name ||
-      pin !== originalState.pin ||
       role !== originalState.role ||
       active !== originalState.active ||
       JSON.stringify(storeAccess) !==
-        JSON.stringify(originalState.storeAccess)
+        JSON.stringify(originalState.storeAccess) ||
+      changingPin
     );
-  }, [name, pin, role, active, storeAccess, originalState]);
+  }, [name, role, active, storeAccess, originalState, changingPin]);
 
-  // ----------------------------------------------------
-  // Toggle store access
-  // ----------------------------------------------------
   const toggleStoreAccess = (id: string) => {
     setStoreAccess((prev) =>
       prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]
@@ -133,14 +120,18 @@ export default function EditUserModal({
 
     try {
       setSaving(true);
+      setError("");
 
-      const payload = {
+      const payload: any = {
         name,
-        pin,
         role,
         active,
-        store_access: storeAccess, // ✅ consistent with backend
+        store_access: storeAccess,
       };
+
+      if (changingPin) {
+        payload.pin = pin;
+      }
 
       await updateUser(user.user_id, payload);
 
@@ -148,7 +139,7 @@ export default function EditUserModal({
       onClose();
     } catch (err) {
       console.error("❌ Update user error:", err);
-      alert("Failed to update user.");
+      setError("Could not save changes. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -175,15 +166,34 @@ export default function EditUserModal({
 
         {/* PIN */}
         <div>
-          <label className="text-sm font-medium">4-digit PIN</label>
-          <input
-            type="password"
-            maxLength={4}
-            inputMode="numeric"
-            className="w-full px-3 py-2 border rounded-lg mt-1"
-            value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-          />
+          <label className="text-sm font-medium">PIN</label>
+
+          {!changingPin ? (
+            <div className="flex items-center justify-between mt-1">
+              <input
+                type="password"
+                value="••••"
+                disabled
+                className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-500"
+              />
+              <button
+                type="button"
+                onClick={() => setChangingPin(true)}
+                className="ml-3 text-sm text-blue-600 hover:underline"
+              >
+                Change PIN
+              </button>
+            </div>
+          ) : (
+            <input
+              type="password"
+              maxLength={4}
+              inputMode="numeric"
+              className="w-full px-3 py-2 border rounded-lg mt-1"
+              value={pin}
+              onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+            />
+          )}
         </div>
 
         {/* ROLE */}
@@ -237,6 +247,8 @@ export default function EditUserModal({
             </div>
           </div>
         )}
+
+        {error && <p className="text-sm text-red-500">{error}</p>}
 
         {/* ACTION BUTTONS */}
         <div className="flex justify-end gap-3 pt-4">
