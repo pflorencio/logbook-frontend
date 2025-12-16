@@ -3,18 +3,28 @@ import React, { useState } from "react";
 import { verifyClosing } from "@/lib/api";
 import toast from "react-hot-toast";
 
-export default function VerifyControls({ record, onUpdate }: { record: any; onUpdate: (updated: any) => void }) {
-  const [notes, setNotes] = useState(record.fields["Verification Notes"] || "");
+export default function VerifyControls({
+  record,
+  onUpdate,
+}: {
+  record: any;
+  onUpdate: (updated: any) => void;
+}) {
+  const [notes, setNotes] = useState(
+    record.fields["Verification Notes"] || ""
+  );
   const [loading, setLoading] = useState(false);
 
   const sessionRaw = localStorage.getItem("session");
   const session = sessionRaw ? JSON.parse(sessionRaw) : {};
   const verifiedBy = session.name || "Manager";
 
-  // ---------------------------------------------
-  // Handle Verify / Needs Update logic
-  // ---------------------------------------------
+  const verifiedStatus = record.fields["Verified Status"];
+  const alreadyVerified = verifiedStatus === "Verified";
+
   async function handleVerify(status: "Verified" | "Needs Update") {
+    if (alreadyVerified) return;
+
     setLoading(true);
 
     try {
@@ -25,14 +35,12 @@ export default function VerifyControls({ record, onUpdate }: { record: any; onUp
         notes,
       });
 
-      // ⭐ Show confirmation
-      if (status === "Verified") {
-        toast.success("Closing verified successfully!");
-      } else {
-        toast.success("Marked as: Needs Update");
-      }
+      toast.success(
+        status === "Verified"
+          ? "Closing verified successfully!"
+          : "Marked as: Needs Update"
+      );
 
-      // ⭐ Update the UI without refreshing
       const updatedRecord = {
         ...record,
         fields: {
@@ -44,8 +52,7 @@ export default function VerifyControls({ record, onUpdate }: { record: any; onUp
         },
       };
 
-      onUpdate(updatedRecord); // Update parent state
-
+      onUpdate(updatedRecord);
     } catch (err) {
       console.error(err);
       toast.error("Failed to update verification status.");
@@ -63,25 +70,30 @@ export default function VerifyControls({ record, onUpdate }: { record: any; onUp
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Add notes for cashier..."
+        disabled={alreadyVerified}
       />
 
+      {alreadyVerified && (
+        <p className="text-sm text-green-700">
+          This closing has already been verified.
+        </p>
+      )}
+
       <div className="flex gap-4">
-        {/* VERIFIED BUTTON */}
         <button
-          disabled={loading}
+          disabled={loading || alreadyVerified}
           onClick={() => handleVerify("Verified")}
           className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300"
         >
-          {loading ? "Saving..." : "Verify Closing"}
+          Verify Closing
         </button>
 
-        {/* NEEDS UPDATE BUTTON */}
         <button
-          disabled={loading}
+          disabled={loading || alreadyVerified}
           onClick={() => handleVerify("Needs Update")}
           className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-300"
         >
-          {loading ? "Saving..." : "Mark Needs Update"}
+          Mark Needs Update
         </button>
       </div>
     </div>

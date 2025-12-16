@@ -6,7 +6,9 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
 
   const f = record.fields;
 
-  // Format helpers
+  // -------------------------------
+  // Helpers
+  // -------------------------------
   const peso = (v: any) =>
     typeof v === "number" ? `₱${v.toLocaleString()}` : v ?? "-";
 
@@ -16,6 +18,45 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
       <span className="font-medium">{value}</span>
     </div>
   );
+
+  const rowWithAlert = (
+    label: string,
+    value: any,
+    showAlert: boolean,
+    alertText?: string
+  ) => (
+    <div
+      className={`flex justify-between py-2 border-b rounded px-2 ${
+        showAlert ? "bg-red-50 border-red-200" : ""
+      }`}
+    >
+      <span className="text-gray-600 flex items-center gap-2">
+        {label}
+        {showAlert && (
+          <span className="text-xs text-red-600 font-medium">
+            ⚠ {alertText || "Check"}
+          </span>
+        )}
+      </span>
+      <span
+        className={`font-medium ${
+          showAlert ? "text-red-700" : ""
+        }`}
+      >
+        {value}
+      </span>
+    </div>
+  );
+
+  // -------------------------------
+  // Conditions
+  // -------------------------------
+  const hasVariance =
+    typeof f["Variance"] === "number" && f["Variance"] !== 0;
+
+  const hasAutoFlag =
+    f["Verification Flag"] &&
+    String(f["Verification Flag"]).trim().length > 0;
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 space-y-8">
@@ -36,7 +77,9 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
 
       {/* ---------- SALES / PAYMENTS ---------- */}
       <section>
-        <h3 className="font-semibold text-gray-800 mb-3">Sales & Payments</h3>
+        <h3 className="font-semibold text-gray-800 mb-3">
+          Sales & Payments
+        </h3>
         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
           {row("Total Sales", peso(f["Total Sales"]))}
           {row("Net Sales", peso(f["Net Sales"]))}
@@ -49,7 +92,6 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
           {row("Marketing Expenses", peso(f["Marketing Expenses"]))}
         </div>
       </section>
-
 
       {/* ---------- BUDGETS ---------- */}
       <section>
@@ -65,10 +107,19 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
 
       {/* ---------- CASH SUMMARY ---------- */}
       <section>
-        <h3 className="font-semibold text-gray-800 mb-3">Cash Summary</h3>
+        <h3 className="font-semibold text-gray-800 mb-3">
+          Cash Summary
+        </h3>
         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
           {row("Actual Cash Counted", peso(f["Actual Cash Counted"]))}
-          {row("Variance (Cash vs Actual)", peso(f["Variance"]))}
+
+          {rowWithAlert(
+            "Variance (Cash vs Actual)",
+            peso(f["Variance"]),
+            hasVariance,
+            "Variance"
+          )}
+
           {row("Cash Float", peso(f["Cash Float"]))}
           {row("Cash for Deposit", peso(f["Cash for Deposit"]))}
           {row("Transfer Needed", peso(f["Transfer Needed"]))}
@@ -77,12 +128,21 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
 
       {/* ---------- META / SUBMISSION ---------- */}
       <section>
-        <h3 className="font-semibold text-gray-800 mb-3">Submission Details</h3>
+        <h3 className="font-semibold text-gray-800 mb-3">
+          Submission Details
+        </h3>
         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
           {row("Submitted By", f["Submitted By"])}
           {row("Submission Time", f["Submission Time"])}
           {row("Verified Status", f["Verified Status"])}
-          {row("Verification Flag (Auto)", f["Verification Flag"])}
+
+          {rowWithAlert(
+            "Verification Flag (Auto)",
+            f["Verification Flag"] || "-",
+            hasAutoFlag,
+            "Auto flag"
+          )}
+
           {row("Last Updated By", f["Last Updated By"])}
           {row("Last Updated At", f["Last Updated At"])}
           {row("Store", f["Store"])}

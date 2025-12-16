@@ -13,13 +13,11 @@ const AdminReports: React.FC = () => {
   const [closing, setClosing] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Session data (store access restrictions)
   const sessionRaw =
     typeof window !== "undefined" ? localStorage.getItem("session") : null;
   const session = sessionRaw ? JSON.parse(sessionRaw) : {};
   const storeAccess = session.storeAccess || session.store_access || [];
 
-  // Read query params from URL when page mounts
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -30,7 +28,6 @@ const AdminReports: React.FC = () => {
     if (storeFromQuery && storeFromQuery !== "undefined") {
       setStore(storeFromQuery);
     } else if (storeAccess.length === 1) {
-      // Fallback: auto-select single store
       setStore(storeAccess[0].id);
     }
 
@@ -39,7 +36,6 @@ const AdminReports: React.FC = () => {
     }
   }, []);
 
-  // Whenever both store + date are set, auto-load report
   useEffect(() => {
     if (store && businessDate) {
       loadReport();
@@ -47,7 +43,6 @@ const AdminReports: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store, businessDate]);
 
-  // Load the report based on store + date
   async function loadReport() {
     if (!store || !businessDate) return;
 
@@ -58,8 +53,8 @@ const AdminReports: React.FC = () => {
       const res = await fetchClosings(businessDate, store);
 
       if (!res.records || res.records.length === 0) {
-        setError("No closing record found for this date.");
         setClosing(null);
+        setError("No closing submitted yet for this date.");
       } else {
         setClosing(res.records[0]);
       }
@@ -69,6 +64,28 @@ const AdminReports: React.FC = () => {
     }
 
     setLoading(false);
+  }
+
+  // -----------------------------
+  // Status interpretation
+  // -----------------------------
+  const status = closing?.fields?.["Verified Status"];
+
+  let statusMessage = "";
+  let statusTone: "info" | "success" | "warning" | "danger" = "info";
+
+  if (!closing) {
+    statusMessage = "Awaiting cashier submission.";
+    statusTone = "warning";
+  } else if (status === "Verified") {
+    statusMessage = "Closing has been verified.";
+    statusTone = "success";
+  } else if (status === "Needs Update") {
+    statusMessage = "Closing needs update from cashier.";
+    statusTone = "danger";
+  } else {
+    statusMessage = "Submitted — pending verification.";
+    statusTone = "info";
   }
 
   return (
@@ -119,30 +136,26 @@ const AdminReports: React.FC = () => {
       <div className="mt-6 space-y-6">
         {error && <p className="text-red-500">{error}</p>}
 
+        {!error && (
+          <div
+            className={`rounded-lg p-4 ${
+              statusTone === "success"
+                ? "bg-green-50 text-green-800"
+                : statusTone === "danger"
+                ? "bg-red-50 text-red-800"
+                : statusTone === "warning"
+                ? "bg-yellow-50 text-yellow-800"
+                : "bg-blue-50 text-blue-800"
+            }`}
+          >
+            {statusMessage}
+          </div>
+        )}
+
         {!error && closing && (
           <>
-            {/* Status Badge */}
-            <div className="flex items-center gap-3 mb-2">
-              <StatusBadge status={closing.fields["Verified Status"]} />
-            </div>
-
-            {/* Verification Notes (visible card) */}
-            {"Verification Notes" in closing.fields && (
-              <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-                <h3 className="font-semibold text-gray-800 mb-1">
-                  Manager Notes:
-                </h3>
-                <p className="text-gray-700 whitespace-pre-line">
-                  {closing.fields["Verification Notes"]?.trim() ||
-                    "No notes added."}
-                </p>
-              </div>
-            )}
-
-            {/* Full Closing Table */}
             <ClosingDetailsTable record={closing} />
 
-            {/* Verification Controls */}
             <VerifyControls
               record={closing}
               onUpdate={(updatedRecord) => setClosing(updatedRecord)}
