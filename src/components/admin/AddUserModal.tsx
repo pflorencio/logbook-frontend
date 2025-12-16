@@ -19,8 +19,17 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Snapshot for dirty check
+  const [originalState, setOriginalState] = useState<{
+    name: string;
+    pin: string;
+    role: "cashier" | "manager" | "admin";
+    active: boolean;
+    storeAccess: string[];
+  } | null>(null);
+
   // ----------------------------------------------------
-  // Load stores when modal opens
+  // Load stores + initialize state when modal opens
   // ----------------------------------------------------
   useEffect(() => {
     if (!open) return;
@@ -36,22 +45,22 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
       }
     }
 
+    const initial = {
+      name: "",
+      pin: "",
+      role: "cashier" as const,
+      active: true,
+      storeAccess: [],
+    };
+
+    setName(initial.name);
+    setPin(initial.pin);
+    setRole(initial.role);
+    setActive(initial.active);
+    setStoreAccess(initial.storeAccess);
+    setOriginalState(initial);
+
     load();
-  }, [open]);
-
-  // ----------------------------------------------------
-  // Reset state when modal closes
-  // ----------------------------------------------------
-  useEffect(() => {
-    if (open) return;
-
-    setName("");
-    setPin("");
-    setRole("cashier");
-    setActive(true);
-    setStoreAccess([]);
-    setError("");
-    setLoading(false);
   }, [open]);
 
   // ----------------------------------------------------
@@ -97,15 +106,28 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
       (role === "manager" && storeAccess.length >= 1));
 
   // ----------------------------------------------------
+  // Dirty check
+  // ----------------------------------------------------
+  const isDirty = useMemo(() => {
+    if (!originalState) return false;
+
+    return (
+      name !== originalState.name ||
+      pin !== originalState.pin ||
+      role !== originalState.role ||
+      active !== originalState.active ||
+      JSON.stringify(storeAccess) !==
+        JSON.stringify(originalState.storeAccess)
+    );
+  }, [name, pin, role, active, storeAccess, originalState]);
+
+  // ----------------------------------------------------
   // Create user
   // ----------------------------------------------------
   const handleCreate = async () => {
     setError("");
 
-    if (!isValid) {
-      setError("Please complete all required fields correctly.");
-      return;
-    }
+    if (!isValid || !isDirty) return;
 
     try {
       setLoading(true);
@@ -218,9 +240,9 @@ export default function AddUserModal({ open, onClose, onCreated }: Props) {
 
           <button
             onClick={handleCreate}
-            disabled={!isValid || loading}
+            disabled={!isValid || !isDirty || loading}
             className={`px-4 py-2 rounded text-white ${
-              isValid
+              isValid && isDirty
                 ? "bg-blue-600 hover:bg-blue-700"
                 : "bg-gray-400 cursor-not-allowed"
             }`}
