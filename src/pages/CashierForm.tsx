@@ -225,7 +225,7 @@ const CashierForm: React.FC = () => {
   }
 
   // ----------------------------------------------
-  // FETCH EXISTING — Option B IMPLEMENTED
+  // FETCH EXISTING — Option B IMPLEMENTED (CLEAN)
   // ----------------------------------------------
   async function fetchExisting(showToast = false): Promise<void> {
     if (!selectedDate || !storeName) {
@@ -253,12 +253,16 @@ const CashierForm: React.FC = () => {
       const data = await fetchUniqueClosing(selectedDate, storeId);
       console.log("📥 fetchExisting response:", data);
 
+      // --------------------------------------------------
       // NO RECORD FOUND
+      // --------------------------------------------------
       if (data.status === "empty") {
         console.log("ℹ️ No record found for this date+store");
 
         setRecordId(null);
         setIsLocked(false);
+        setNeedsUpdate(false);
+
         const freshForm = {
           date: selectedDate,
           totalSales: "",
@@ -285,18 +289,25 @@ const CashierForm: React.FC = () => {
         return;
       }
 
+      // --------------------------------------------------
       // EXISTING RECORD FOUND
+      // --------------------------------------------------
       console.log("✅ Existing record found:", data.id);
 
       setRecordId(data.id);
 
-      const f = data.fields || {};
-      const lockStatus = (f["Lock Status"] || "").trim().toLowerCase();
-      setIsLocked(lockStatus === "locked");
+      const fields = data.fields || {};
+      const verifiedStatus = (fields["Verified Status"] || "").trim();
+      const lockStatus = (fields["Lock Status"] || "").trim();
 
-      // Map fields
+      const isNeedsUpdate = verifiedStatus === "Needs Update";
+
+      // 🔓 IMPORTANT: override lock when Needs Update
+      setIsLocked(lockStatus === "Locked" && !isNeedsUpdate);
+      setNeedsUpdate(isNeedsUpdate);
+
       const mappedForm = {
-        ...mapFields(f),
+        ...mapFields(fields),
         date: selectedDate,
       };
 
@@ -304,7 +315,11 @@ const CashierForm: React.FC = () => {
       setOriginalForm(mappedForm);
 
       if (showToast) {
-        toast.success(`Record loaded (${lockStatus || "unlocked"})`);
+        toast.success(
+          isNeedsUpdate
+            ? "This record needs updating — please revise and resubmit."
+            : `Record loaded (${lockStatus || "unlocked"})`
+        );
       }
     } catch (err) {
       console.error("❌ fetchExisting error:", err);
@@ -512,36 +527,20 @@ const CashierForm: React.FC = () => {
             )}
           </header>
           
-          {/* NEEDS UPDATE BANNER (shown before date selection) */}
-          {!checkingNeedsUpdate && needsUpdate?.exists && (
-            <div className="mb-6 px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-sm flex items-start gap-3">
-              <div className="mt-0.5">⚠️</div>
-
-              <div className="flex-1">
-                <p className="font-semibold">
-                  A previous closing needs an update
-                </p>
-
-                <p className="mt-1 text-xs text-red-700">
-                  Business Date:{" "}
-                  <b>{needsUpdate.business_date}</b>
-                </p>
-
-                {needsUpdate.notes && (
-                  <p className="mt-1 text-xs text-red-700 italic">
-                    Manager note: “{needsUpdate.notes}”
-                  </p>
-                )}
+          {/* NEEDS UPDATE BANNER */}
+          {needsUpdate?.exists && !selectedDate && (
+            <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              <div className="font-semibold">
+                ⚠️ Action Required
               </div>
-
-              <button
-                onClick={() => {
-                  setSelectedDate(needsUpdate.business_date);
-                }}
-                className="ml-2 px-3 py-1.5 text-xs font-semibold rounded-full bg-red-600 text-white hover:bg-red-700"
-              >
-                Go to date
-              </button>
+              <div className="mt-1">
+                A previous closing for{" "}
+                <b>{needsUpdate.store_name}</b> on{" "}
+                <b>{needsUpdate.business_date}</b> needs updating.
+              </div>
+              <div className="mt-2 text-xs text-red-600">
+                Please select this date to review and resubmit.
+              </div>
             </div>
           )}
 
