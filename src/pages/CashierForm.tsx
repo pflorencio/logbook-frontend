@@ -133,7 +133,11 @@ const CashierForm: React.FC = () => {
 
   const isDirty = useMemo(() => {
     if (!originalForm) return false;
-    return JSON.stringify(form) !== JSON.stringify(originalForm);
+
+    const { date: _d1, ...current } = form;
+    const { date: _d2, ...original } = originalForm;
+
+    return JSON.stringify(current) !== JSON.stringify(original);
   }, [form, originalForm]);
 
   const cashForDeposit = Math.max(0, rawCashForDeposit);
