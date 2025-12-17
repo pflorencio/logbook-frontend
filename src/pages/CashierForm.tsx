@@ -140,12 +140,23 @@ const CashierForm: React.FC = () => {
     return JSON.stringify(current) !== JSON.stringify(original);
   }, [form, originalForm]);
 
+  const isComplete = useMemo(() => {
+    if (!selectedDate) return false;
+
+    return numericFields.every((field) => {
+      const value = form[field];
+      return value !== "" && value !== null && !isNaN(Number(value));
+    });
+  }, [form, selectedDate]);
+
   const cashForDeposit = Math.max(0, rawCashForDeposit);
   const transferNeeded =
     rawCashForDeposit < 0 ? Math.abs(rawCashForDeposit) : 0;
 
   const peso = (n: number | string): string =>
-    isNaN(Number(n)) || n === "" ? "₱0" : `₱${Number(n).toLocaleString("en-PH")}`;
+    isNaN(Number(n)) || n === ""
+      ? "₱0"
+      : `₱${Number(n).toLocaleString("en-PH")}`;
 
   // ----------------------------------------------
   // HANDLE CHANGE
@@ -647,7 +658,7 @@ const CashierForm: React.FC = () => {
 
                   <button
                     onClick={handleSave}
-                    disabled={isLocked || isSaving || !selectedDate || !isDirty}
+                    disabled={isLocked || isSaving || !selectedDate || !isDirty || !isComplete}
                     className={`px-6 py-2 rounded-full text-sm font-semibold text-white shadow ${
                       isLocked
                         ? "bg-gray-300 cursor-not-allowed"
