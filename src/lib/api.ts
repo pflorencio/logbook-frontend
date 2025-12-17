@@ -230,6 +230,22 @@ export async function fetchPendingClosings() {
 }
 
 // -------------------------------------------------------------
+// Check Needs Update
+// -------------------------------------------------------------
+
+export async function checkNeedsUpdate(storeId: string) {
+  const res = await fetch(
+    `${process.env.NEXT_PUBLIC_BACKEND_URL}/closings/needs-update?store_id=${storeId}`
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to check needs-update");
+  }
+
+  return res.json(); // { exists: boolean, business_date?, notes? }
+}
+
+// -------------------------------------------------------------
 // REPORTING (Daily Summary)
 // -------------------------------------------------------------
 

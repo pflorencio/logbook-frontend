@@ -14,7 +14,7 @@ export default function Layout({
     <div className="min-h-screen bg-gray-50 flex flex-col">
       {/* Header */}
       <header className="bg-white shadow-md p-4 flex justify-between items-center">
-        <h1 className="text-xl font-semibold">StoreHub Ops</h1>
+        <h1 className="text-xl font-semibold">Daily Closing App</h1>
 
         <div className="flex items-center gap-4">
           {cashierName && (

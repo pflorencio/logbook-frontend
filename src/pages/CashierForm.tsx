@@ -67,6 +67,24 @@ const CashierForm: React.FC = () => {
     navigate("/login");
   };
 
+  useEffect(() => {
+    if (!storeId) return;
+
+    async function runCheck() {
+      try {
+        setCheckingNeedsUpdate(true);
+        const result = await checkNeedsUpdate(storeId);
+        setNeedsUpdate(result);
+      } catch (err) {
+        console.error("Needs-update check failed", err);
+      } finally {
+        setCheckingNeedsUpdate(false);
+      }
+    }
+
+    runCheck();
+  }, [storeId]);
+
   // ----------------------------------------------
   // STATE
   // ----------------------------------------------
@@ -105,6 +123,14 @@ const CashierForm: React.FC = () => {
   const [managerPin, setManagerPin] = useState("");
 
   const lastFetchAbort = useRef<AbortController | null>(null);
+
+  const [needsUpdate, setNeedsUpdate] = useState<{
+    exists: boolean;
+    business_date?: string;
+    notes?: string;
+  } | null>(null);
+
+  const [checkingNeedsUpdate, setCheckingNeedsUpdate] = useState(false);
 
   // ----------------------------------------------
   // COMPUTED FIELD HELPERS
@@ -485,6 +511,39 @@ const CashierForm: React.FC = () => {
               </div>
             )}
           </header>
+          
+          {/* NEEDS UPDATE BANNER (shown before date selection) */}
+          {!checkingNeedsUpdate && needsUpdate?.exists && (
+            <div className="mb-6 px-4 py-3 rounded-xl border border-red-200 bg-red-50 text-red-800 text-sm flex items-start gap-3">
+              <div className="mt-0.5">⚠️</div>
+
+              <div className="flex-1">
+                <p className="font-semibold">
+                  A previous closing needs an update
+                </p>
+
+                <p className="mt-1 text-xs text-red-700">
+                  Business Date:{" "}
+                  <b>{needsUpdate.business_date}</b>
+                </p>
+
+                {needsUpdate.notes && (
+                  <p className="mt-1 text-xs text-red-700 italic">
+                    Manager note: “{needsUpdate.notes}”
+                  </p>
+                )}
+              </div>
+
+              <button
+                onClick={() => {
+                  setSelectedDate(needsUpdate.business_date);
+                }}
+                className="ml-2 px-3 py-1.5 text-xs font-semibold rounded-full bg-red-600 text-white hover:bg-red-700"
+              >
+                Go to date
+              </button>
+            </div>
+          )}
 
           {/* NO DATE SELECTED */}
           {!selectedDate && (
