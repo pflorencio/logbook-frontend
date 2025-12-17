@@ -450,7 +450,6 @@ const CashierForm: React.FC = () => {
                   onChange={(e) => {
                     const d = e.target.value;
                     setSelectedDate(d);
-                    setForm((p) => ({ ...p, date: d }));
                   }}
                   className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm"
                 />
