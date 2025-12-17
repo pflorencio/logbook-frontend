@@ -658,9 +658,15 @@ const CashierForm: React.FC = () => {
 
                   <button
                     onClick={handleSave}
-                    disabled={isLocked || isSaving || !selectedDate || !isDirty || !isComplete}
+                    disabled={
+                      isLocked ||
+                      isSaving ||
+                      !selectedDate ||
+                      !isDirty ||
+                      !isComplete
+                    }
                     className={`px-6 py-2 rounded-full text-sm font-semibold text-white shadow ${
-                      isLocked
+                      isLocked || !isDirty || !isComplete
                         ? "bg-gray-300 cursor-not-allowed"
                         : "bg-blue-600 hover:bg-blue-700"
                     }`}
