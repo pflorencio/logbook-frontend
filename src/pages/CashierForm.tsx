@@ -90,6 +90,8 @@ const CashierForm: React.FC = () => {
     cashFloat: "",
   });
 
+  const [originalForm, setOriginalForm] = useState<FormState | null>(null);
+
   const [formErrors, setFormErrors] = useState<
     Partial<Record<keyof FormState, string>>
   >({});
@@ -128,6 +130,11 @@ const CashierForm: React.FC = () => {
     const floatAmt = Number(form.cashFloat) || 0;
     return actual - floatAmt - totalBudgets;
   }, [form, totalBudgets]);
+
+  const isDirty = useMemo(() => {
+    if (!originalForm) return false;
+    return JSON.stringify(form) !== JSON.stringify(originalForm);
+  }, [form, originalForm]);
 
   const cashForDeposit = Math.max(0, rawCashForDeposit);
   const transferNeeded =
@@ -211,7 +218,7 @@ const CashierForm: React.FC = () => {
 
         setRecordId(null);
         setIsLocked(false);
-        setForm({
+        const freshForm = {
           date: selectedDate,
           totalSales: "",
           netSales: "",
@@ -228,7 +235,10 @@ const CashierForm: React.FC = () => {
           staffMealBudget: "",
           actualCashCounted: "",
           cashFloat: "",
-        });
+        };
+
+        setForm(freshForm);
+        setOriginalForm(freshForm);
 
         if (showToast) toast("No record found — starting fresh.");
         return;
@@ -244,10 +254,13 @@ const CashierForm: React.FC = () => {
       setIsLocked(lockStatus === "locked");
 
       // Map fields
-      setForm({
+      const mappedForm = {
         ...mapFields(f),
         date: selectedDate,
-      });
+      };
+
+      setForm(mappedForm);
+      setOriginalForm(mappedForm);
 
       if (showToast) {
         toast.success(`Record loaded (${lockStatus || "unlocked"})`);
@@ -631,7 +644,7 @@ const CashierForm: React.FC = () => {
 
                   <button
                     onClick={handleSave}
-                    disabled={isLocked || isSaving || !selectedDate}
+                    disabled={isLocked || isSaving || !selectedDate || !isDirty}
                     className={`px-6 py-2 rounded-full text-sm font-semibold text-white shadow ${
                       isLocked
                         ? "bg-gray-300 cursor-not-allowed"
