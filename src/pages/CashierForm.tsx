@@ -124,11 +124,21 @@ const CashierForm: React.FC = () => {
 
   const lastFetchAbort = useRef<AbortController | null>(null);
 
-  const [needsUpdate, setNeedsUpdate] = useState<{
+  // ----------------------------------------------
+  // NEEDS UPDATE STATE (separated concerns)
+  // ----------------------------------------------
+
+  // Pre-date check (store-level)
+  const [needsUpdateCheck, setNeedsUpdateCheck] = useState<{
     exists: boolean;
     business_date?: string;
+    store_name?: string;
     notes?: string;
   } | null>(null);
+
+  // Active record (selected date)
+  const [needsUpdateActive, setNeedsUpdateActive] = useState<boolean>(false);
+  const [needsUpdateNotes, setNeedsUpdateNotes] = useState<string | null>(null);
 
   const [checkingNeedsUpdate, setCheckingNeedsUpdate] = useState(false);
 
@@ -225,24 +235,11 @@ const CashierForm: React.FC = () => {
   }
 
   // ----------------------------------------------
-  // FETCH EXISTING — Option B IMPLEMENTED (CLEAN)
+  // FETCH EXISTING
   // ----------------------------------------------
   async function fetchExisting(showToast = false): Promise<void> {
-    if (!selectedDate || !storeName) {
-      console.log("⚠️ fetchExisting skipped — missing:", {
-        selectedDate,
-        storeName,
-      });
-      return;
-    }
+    if (!selectedDate || !storeName) return;
 
-    console.log("🚀 fetchExisting → calling backend with:", {
-      selectedDate,
-      storeName,
-      url: `${BACKEND_URL}/closings/unique?business_date=${selectedDate}&store=${storeName}`,
-    });
-
-    // Cancel previous request
     if (lastFetchAbort.current) lastFetchAbort.current.abort();
     const controller = new AbortController();
     lastFetchAbort.current = controller;
@@ -253,15 +250,12 @@ const CashierForm: React.FC = () => {
       const data = await fetchUniqueClosing(selectedDate, storeId);
       console.log("📥 fetchExisting response:", data);
 
-      // --------------------------------------------------
-      // NO RECORD FOUND
-      // --------------------------------------------------
+      // NO RECORD
       if (data.status === "empty") {
-        console.log("ℹ️ No record found for this date+store");
-
         setRecordId(null);
         setIsLocked(false);
-        setNeedsUpdate(false);
+        setNeedsUpdateActive(false);
+        setNeedsUpdateNotes(null);
 
         const freshForm = {
           date: selectedDate,
@@ -289,11 +283,7 @@ const CashierForm: React.FC = () => {
         return;
       }
 
-      // --------------------------------------------------
-      // EXISTING RECORD FOUND
-      // --------------------------------------------------
-      console.log("✅ Existing record found:", data.id);
-
+      // EXISTING RECORD
       setRecordId(data.id);
 
       const fields = data.fields || {};
@@ -302,9 +292,11 @@ const CashierForm: React.FC = () => {
 
       const isNeedsUpdate = verifiedStatus === "Needs Update";
 
-      // 🔓 IMPORTANT: override lock when Needs Update
+      setNeedsUpdateActive(isNeedsUpdate);
+      setNeedsUpdateNotes(fields["Verification Notes"] || null);
+
+      // 🔓 Needs Update overrides lock
       setIsLocked(lockStatus === "Locked" && !isNeedsUpdate);
-      setNeedsUpdate(isNeedsUpdate);
 
       const mappedForm = {
         ...mapFields(fields),
@@ -484,7 +476,8 @@ const CashierForm: React.FC = () => {
 
         <div className="w-full max-w-3xl flex flex-col">
           {/* HEADER */}
-          <header className="mb-6">
+          {/* HEADER */}
+          <header className="mb-6 space-y-3">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-xl font-semibold text-gray-900">
@@ -499,10 +492,7 @@ const CashierForm: React.FC = () => {
                 <input
                   type="date"
                   value={selectedDate}
-                  onChange={(e) => {
-                    const d = e.target.value;
-                    setSelectedDate(d);
-                  }}
+                  onChange={(e) => setSelectedDate(e.target.value)}
                   className="px-3 py-2 rounded-lg border border-gray-300 bg-white text-sm"
                 />
 
@@ -520,30 +510,43 @@ const CashierForm: React.FC = () => {
               </div>
             </div>
 
-            {/* LOCKED INFO */}
-            {selectedDate && isLocked && (
-              <div className="mt-3 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center gap-2">
-                🔒 This record is locked. Unlock to edit.
+            {/* PRE-DATE NEEDS UPDATE BANNER */}
+            {needsUpdateCheck?.exists && !selectedDate && (
+              <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                <div className="font-semibold">⚠️ Action Required</div>
+                <div className="mt-1">
+                  A previous closing for <b>{needsUpdateCheck.store_name}</b> on{" "}
+                  <b>{needsUpdateCheck.business_date}</b> needs updating.
+                </div>
+                {needsUpdateCheck.notes && (
+                  <div className="mt-2 text-xs italic text-red-600">
+                    “{needsUpdateCheck.notes}”
+                  </div>
+                )}
+                <div className="mt-2 text-xs text-red-600">
+                  Please select this date to review and resubmit.
+                </div>
               </div>
             )}
 
-            {/* NEEDS UPDATE — AFTER DATE SELECTED */}
-            {selectedDate && needsUpdate && (
-              <div className="mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 space-y-1">
-                <div className="flex items-center gap-2 font-semibold">
-                  ⚠️ Needs Update
+            {/* IN-FORM NEEDS UPDATE BANNER */}
+            {selectedDate && needsUpdateActive && (
+              <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+                <div className="font-semibold">⚠️ Needs Update</div>
+                <div className="mt-1">
+                  This closing was sent back for correction.
                 </div>
-
                 {needsUpdateNotes && (
-                  <div className="text-sm text-red-600">
-                    <span className="font-medium">Manager notes:</span>{" "}
-                    {needsUpdateNotes}
+                  <div className="mt-2 text-xs italic text-red-600">
+                    “{needsUpdateNotes}”
                   </div>
                 )}
+              </div>
+            )}
 
-                <div className="text-xs text-red-500">
-                  Please update the form and resubmit.
-                </div>
+            {selectedDate && isLocked && !needsUpdateActive && (
+              <div className="px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center gap-2">
+                🔒 This record is locked. Unlock to edit.
               </div>
             )}
           </header>
