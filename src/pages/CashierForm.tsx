@@ -520,14 +520,35 @@ const CashierForm: React.FC = () => {
               </div>
             </div>
 
+            {/* LOCKED INFO */}
             {selectedDate && isLocked && (
               <div className="mt-3 px-4 py-2 bg-yellow-50 border border-yellow-200 rounded-lg text-sm text-yellow-700 flex items-center gap-2">
                 🔒 This record is locked. Unlock to edit.
               </div>
             )}
+
+            {/* NEEDS UPDATE — AFTER DATE SELECTED */}
+            {selectedDate && needsUpdate && (
+              <div className="mt-3 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 space-y-1">
+                <div className="flex items-center gap-2 font-semibold">
+                  ⚠️ Needs Update
+                </div>
+
+                {needsUpdateNotes && (
+                  <div className="text-sm text-red-600">
+                    <span className="font-medium">Manager notes:</span>{" "}
+                    {needsUpdateNotes}
+                  </div>
+                )}
+
+                <div className="text-xs text-red-500">
+                  Please update the form and resubmit.
+                </div>
+              </div>
+            )}
           </header>
-          
-          {/* NEEDS UPDATE BANNER */}
+
+          {/* NEEDS UPDATE — BEFORE DATE SELECTED */}
           {needsUpdate?.exists && !selectedDate && (
             <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
               <div className="font-semibold">
@@ -541,158 +562,6 @@ const CashierForm: React.FC = () => {
               <div className="mt-2 text-xs text-red-600">
                 Please select this date to review and resubmit.
               </div>
-            </div>
-          )}
-
-          {/* NO DATE SELECTED */}
-          {!selectedDate && (
-            <p className="text-center text-gray-500 mt-10">
-              Please choose a business date to begin.
-            </p>
-          )}
-
-          {/* LOADING */}
-          {selectedDate && loading && (
-            <p className="text-center text-gray-500 mt-10">Loading…</p>
-          )}
-
-          {/* MAIN FORM */}
-          {selectedDate && !loading && (
-            <div className="pb-28 space-y-6">
-              {/* SALES */}
-              <section className={sectionCard}>
-                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
-                  Sales Inputs
-                </h2>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  {([
-                    ["Total Sales", "totalSales"],
-                    ["Net Sales", "netSales"],
-                    ["Cash Payments", "cashPayments"],
-                    ["Card Payments", "cardPayments"],
-                    ["Digital Payments", "digitalPayments"],
-                    ["Grab Payments", "grabPayments"],
-                    ["Voucher Payments", "voucherPayments"],
-                    ["Bank Transfer Payments", "bankTransferPayments"],
-                    ["Marketing Expense (recorded as sale)", "marketingExpenses"],
-                  ] as const).map(([label, field]) => (
-                    <div key={field}>
-                      <label className="text-xs text-gray-600">{label}</label>
-                      <input
-                        type="number"
-                        disabled={isLocked}
-                        inputMode="numeric"
-                        value={form[field]}
-                        onChange={(e) => handleChange(field, e.target.value)}
-                        className={`${inputBase} ${
-                          isLocked ? inputDisabled : ""
-                        }`}
-                      />
-                      {formErrors[field] && (
-                        <p className="text-xs text-red-500">
-                          {formErrors[field]}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* BUDGETS */}
-              <section className={sectionCard}>
-                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
-                  Requested Budgets
-                </h2>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  {([
-                    ["Kitchen Budget", "kitchenBudget"],
-                    ["Bar Budget", "barBudget"],
-                    ["Non-Food Budget", "nonFoodBudget"],
-                    ["Staff Meal Budget", "staffMealBudget"],
-                  ] as const).map(([label, field]) => (
-                    <div key={field}>
-                      <label className="text-xs text-gray-600">{label}</label>
-                      <input
-                        type="number"
-                        disabled={isLocked}
-                        inputMode="numeric"
-                        value={form[field]}
-                        onChange={(e) => handleChange(field, e.target.value)}
-                        className={`${inputBase} ${
-                          isLocked ? inputDisabled : ""
-                        }`}
-                      />
-                      {formErrors[field] && (
-                        <p className="text-xs text-red-500">
-                          {formErrors[field]}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* CASH COUNT */}
-              <section className={sectionCard}>
-                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
-                  Cash Count Inputs
-                </h2>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  {([
-                    ["Actual Cash Counted", "actualCashCounted"],
-                    ["Cash Float", "cashFloat"],
-                  ] as const).map(([label, field]) => (
-                    <div key={field}>
-                      <label className="text-xs text-gray-600">{label}</label>
-                      <input
-                        type="number"
-                        disabled={isLocked}
-                        inputMode="numeric"
-                        value={form[field]}
-                        onChange={(e) => handleChange(field, e.target.value)}
-                        className={`${inputBase} ${
-                          isLocked ? inputDisabled : ""
-                        }`}
-                      />
-                      {formErrors[field] && (
-                        <p className="text-xs text-red-500">
-                          {formErrors[field]}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              {/* SUMMARY */}
-              <section className={sectionCard}>
-                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
-                  Summary (Preview)
-                </h2>
-
-                <div className="grid grid-cols-2 text-sm gap-y-2">
-                  <div className="text-gray-600">Variance:</div>
-                  <div className="text-right font-medium">{peso(variance)}</div>
-
-                  <div className="text-gray-600">Total Budgets:</div>
-                  <div className="text-right font-medium">
-                    {peso(totalBudgets)}
-                  </div>
-
-                  <div className="text-gray-600">Cash for Deposit:</div>
-                  <div className="text-right font-medium">
-                    {peso(cashForDeposit)}
-                  </div>
-
-                  <div className="text-gray-600">Transfer Needed:</div>
-                  <div className="text-right font-medium text-red-600">
-                    {transferNeeded > 0 ? peso(transferNeeded) : "₱0"}
-                  </div>
-                </div>
-              </section>
             </div>
           )}
 
