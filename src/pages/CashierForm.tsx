@@ -3,9 +3,13 @@ import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
 import Layout from "../components/Layout";
-import { fetchUniqueClosing, saveClosing, unlockRecord } from "@/lib/api";
-import { BACKEND_URL } from "@/lib/api";
-import { fetchUniqueClosing, saveClosing, unlockRecord, checkNeedsUpdate } from "@/lib/api";
+import {
+  BACKEND_URL,
+  fetchUniqueClosing,
+  saveClosing,
+  unlockRecord,
+  checkNeedsUpdate,
+} from "@/lib/api";
 
 console.log("🟢 Using backend URL:", BACKEND_URL);
 
@@ -75,7 +79,7 @@ const CashierForm: React.FC = () => {
       try {
         setCheckingNeedsUpdate(true);
         const result = await checkNeedsUpdate(storeId);
-        setNeedsUpdate(result);
+        setNeedsUpdateCheck(result);
       } catch (err) {
         console.error("Needs-update check failed", err);
       } finally {
@@ -476,7 +480,6 @@ const CashierForm: React.FC = () => {
         <Toaster position="top-center" />
 
         <div className="w-full max-w-3xl flex flex-col">
-         
           {/* HEADER */}
           <header className="mb-6 space-y-3">
             <div className="flex items-center justify-between">
@@ -551,6 +554,158 @@ const CashierForm: React.FC = () => {
               </div>
             )}
           </header>
+
+          {/* NO DATE SELECTED */}
+          {!selectedDate && (
+            <p className="text-center text-gray-500 mt-10">
+              Please choose a business date to begin.
+            </p>
+          )}
+
+          {/* LOADING */}
+          {selectedDate && loading && (
+            <p className="text-center text-gray-500 mt-10">Loading…</p>
+          )}
+
+          {/* MAIN FORM */}
+          {selectedDate && !loading && (
+            <div className="pb-28 space-y-6">
+              {/* SALES */}
+              <section className={sectionCard}>
+                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
+                  Sales Inputs
+                </h2>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  {([
+                    ["Total Sales", "totalSales"],
+                    ["Net Sales", "netSales"],
+                    ["Cash Payments", "cashPayments"],
+                    ["Card Payments", "cardPayments"],
+                    ["Digital Payments", "digitalPayments"],
+                    ["Grab Payments", "grabPayments"],
+                    ["Voucher Payments", "voucherPayments"],
+                    ["Bank Transfer Payments", "bankTransferPayments"],
+                    ["Marketing Expense (recorded as sale)", "marketingExpenses"],
+                  ] as const).map(([label, field]) => (
+                    <div key={field}>
+                      <label className="text-xs text-gray-600">{label}</label>
+                      <input
+                        type="number"
+                        disabled={isLocked}
+                        inputMode="numeric"
+                        value={form[field]}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        className={`${inputBase} ${
+                          isLocked ? inputDisabled : ""
+                        }`}
+                      />
+                      {formErrors[field] && (
+                        <p className="text-xs text-red-500">
+                          {formErrors[field]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* BUDGETS */}
+              <section className={sectionCard}>
+                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
+                  Requested Budgets
+                </h2>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  {([
+                    ["Kitchen Budget", "kitchenBudget"],
+                    ["Bar Budget", "barBudget"],
+                    ["Non-Food Budget", "nonFoodBudget"],
+                    ["Staff Meal Budget", "staffMealBudget"],
+                  ] as const).map(([label, field]) => (
+                    <div key={field}>
+                      <label className="text-xs text-gray-600">{label}</label>
+                      <input
+                        type="number"
+                        disabled={isLocked}
+                        inputMode="numeric"
+                        value={form[field]}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        className={`${inputBase} ${
+                          isLocked ? inputDisabled : ""
+                        }`}
+                      />
+                      {formErrors[field] && (
+                        <p className="text-xs text-red-500">
+                          {formErrors[field]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* CASH COUNT */}
+              <section className={sectionCard}>
+                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
+                  Cash Count Inputs
+                </h2>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  {([
+                    ["Actual Cash Counted", "actualCashCounted"],
+                    ["Cash Float", "cashFloat"],
+                  ] as const).map(([label, field]) => (
+                    <div key={field}>
+                      <label className="text-xs text-gray-600">{label}</label>
+                      <input
+                        type="number"
+                        disabled={isLocked}
+                        inputMode="numeric"
+                        value={form[field]}
+                        onChange={(e) => handleChange(field, e.target.value)}
+                        className={`${inputBase} ${
+                          isLocked ? inputDisabled : ""
+                        }`}
+                      />
+                      {formErrors[field] && (
+                        <p className="text-xs text-red-500">
+                          {formErrors[field]}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* SUMMARY */}
+              <section className={sectionCard}>
+                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
+                  Summary (Preview)
+                </h2>
+
+                <div className="grid grid-cols-2 text-sm gap-y-2">
+                  <div className="text-gray-600">Variance:</div>
+                  <div className="text-right font-medium">{peso(variance)}</div>
+
+                  <div className="text-gray-600">Total Budgets:</div>
+                  <div className="text-right font-medium">
+                    {peso(totalBudgets)}
+                  </div>
+
+                  <div className="text-gray-600">Cash for Deposit:</div>
+                  <div className="text-right font-medium">
+                    {peso(cashForDeposit)}
+                  </div>
+
+                  <div className="text-gray-600">Transfer Needed:</div>
+                  <div className="text-right font-medium text-red-600">
+                    {transferNeeded > 0 ? peso(transferNeeded) : "₱0"}
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
 
           {/* FOOTER ACTIONS */}
           {selectedDate && !loading && (
