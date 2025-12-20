@@ -133,6 +133,46 @@ const CashierForm: React.FC = () => {
   }, [storeId]);
 
   // ----------------------------------------------
+  // STATE (FORM + UI)
+  // ----------------------------------------------
+  const [selectedDate, setSelectedDate] = useState<string>("");
+
+  const [form, setForm] = useState<FormState>({
+    date: "",
+    totalSales: "",
+    netSales: "",
+    cashPayments: "",
+    cardPayments: "",
+    digitalPayments: "",
+    grabPayments: "",
+    voucherPayments: "",
+    bankTransferPayments: "",
+    marketingExpenses: "",
+    kitchenBudget: "",
+    barBudget: "",
+    nonFoodBudget: "",
+    staffMealBudget: "",
+    actualCashCounted: "",
+    cashFloat: "",
+  });
+
+  const [originalForm, setOriginalForm] = useState<FormState | null>(null);
+
+  const [formErrors, setFormErrors] = useState<
+    Partial<Record<keyof FormState, string>>
+  >({});
+
+  const [recordId, setRecordId] = useState<string | null>(null);
+  const [isLocked, setIsLocked] = useState<boolean>(false);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [managerPin, setManagerPin] = useState("");
+
+  const lastFetchAbort = useRef<AbortController | null>(null);
+
+  // ----------------------------------------------
   // COMPUTED FIELD HELPERS
   // ----------------------------------------------
   const variance = useMemo(() => {
