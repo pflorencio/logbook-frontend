@@ -19,7 +19,7 @@ export interface StoreRef {
 export interface User {
   user_id: string;
   name: string;
-  pin?: string; // Not returned on login
+  pin?: string;
   role: "cashier" | "manager" | "admin";
   active: boolean;
   store: StoreRef | null;
@@ -60,11 +60,37 @@ export interface DashboardSummaryResponse {
   raw_fields: any;
 }
 
+/**
+ * Needs Update — single record check
+ */
+export interface NeedsUpdateCheckResponse {
+  exists: boolean;
+  record_id?: string;
+  business_date?: string;
+  store_name?: string;
+  notes?: string;
+}
+
+/**
+ * Needs Update — list response
+ */
+export interface NeedsUpdateListResponse {
+  count: number;
+  records: {
+    record_id: string;
+    business_date: string;
+    notes?: string;
+  }[];
+}
+
 // -------------------------------------------------------------
 // SHARED FETCH WRAPPER
 // -------------------------------------------------------------
 
-async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T> {
+async function apiRequest<T>(
+  url: string,
+  options: RequestInit = {}
+): Promise<T> {
   console.log("🌐 API REQUEST →", options.method || "GET", url);
 
   const res = await fetch(url, {
@@ -76,7 +102,7 @@ async function apiRequest<T>(url: string, options: RequestInit = {}): Promise<T>
   });
 
   if (!res.ok) {
-    let detail = await res.text();
+    const detail = await res.text();
     console.error("❌ API Error:", detail);
     throw new Error(detail || `Request failed with status ${res.status}`);
   }
@@ -187,66 +213,70 @@ export async function verifyRecord(
   });
 }
 
-// -----------------------------
-// VERIFY CLOSING STATUS
-// -----------------------------
+// -------------------------------------------------------------
+// NEEDS UPDATE — SINGLE CHECK
+// -------------------------------------------------------------
+
+export async function checkNeedsUpdate(
+  storeId: string
+): Promise<NeedsUpdateCheckResponse> {
+  return apiRequest<NeedsUpdateCheckResponse>(
+    `${BACKEND_URL}/closings/needs-update?store_id=${storeId}`
+  );
+}
+
+// -------------------------------------------------------------
+// NEEDS UPDATE — LIST (FOR CASHIER LANDING PAGE)
+// -------------------------------------------------------------
+
+export async function fetchNeedsUpdateList(
+  storeId: string
+): Promise<NeedsUpdateListResponse> {
+  return apiRequest<NeedsUpdateListResponse>(
+    `${BACKEND_URL}/closings/needs-update-list?store_id=${storeId}`
+  );
+}
+
+// -------------------------------------------------------------
+// VERIFY CLOSING (alias for backward compatibility)
+// -------------------------------------------------------------
+
 export async function verifyClosing(payload: {
   record_id: string;
   status: string;
   verified_by: string;
-  notes: string;
+  notes?: string;
 }) {
-  const res = await fetch(`${BACKEND_URL}/verify`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  return verifyRecord(
+    payload.record_id,
+    payload.status,
+    payload.verified_by,
+    payload.notes
+  );
+}
+
+// -------------------------------------------------------------
+// VERIFICATION QUEUE (Admin)
+// -------------------------------------------------------------
+
+export async function fetchPendingClosings() {
+  const url = `${BACKEND_URL}/verification-queue`;
+  console.log("🧨 API CALL →", url);
+
+  const res = await fetch(url);
 
   if (!res.ok) {
     const errorText = await res.text();
-    console.error("❌ Verify API error:", errorText);
-    throw new Error("Failed to update verification status");
+    console.error("❌ fetchPendingClosings error:", errorText);
+    throw new Error("Failed to load pending verifications");
   }
 
   return res.json();
 }
 
-// Fetch all closings that need verification
-export async function fetchPendingClosings() {
-  try {
-    const url = `${BACKEND_URL}/verification-queue`;
-    console.log("🧨 API TEST CALL →", url);
-
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Failed to load pending verifications");
-
-    return await res.json();
-  } catch (err) {
-    console.error("fetchPendingClosings error:", err);
-    throw err;
-  }
-}
 
 // -------------------------------------------------------------
-// Check Needs Update
-// -------------------------------------------------------------
-
-export async function checkNeedsUpdate(storeId: string) {
-  const res = await fetch(
-    `${BACKEND_URL}/closings/needs-update?store_id=${storeId}`
-  );
-
-  if (!res.ok) {
-    throw new Error("Needs update check failed");
-  }
-
-  return res.json();
-}
-
-// -------------------------------------------------------------
-// REPORTING (Daily Summary)
+// REPORTING
 // -------------------------------------------------------------
 
 export async function fetchDailySummary(
@@ -260,7 +290,7 @@ export async function fetchDailySummary(
 }
 
 // -------------------------------------------------------------
-// ⭐ NEW — Dashboard Summary (backend-computed analytics)
+// DASHBOARD SUMMARY
 // -------------------------------------------------------------
 
 export async function fetchDashboardClosing(

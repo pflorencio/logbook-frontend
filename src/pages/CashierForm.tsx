@@ -9,6 +9,7 @@ import {
   saveClosing,
   unlockRecord,
   checkNeedsUpdate,
+  fetchNeedsUpdateList, // ✅ FIX: missing import
 } from "@/lib/api";
 
 console.log("🟢 Using backend URL:", BACKEND_URL);
@@ -63,7 +64,7 @@ const CashierForm: React.FC = () => {
 
   const userName: string = session.name || "Cashier";
   const storeId: string = session.storeId || null;
-  const storeName: string = session.storeName || null; // 🔥 IMPORTANT: used by fetchUniqueClosing
+  const storeName: string = session.storeName || null;
   const submittedBy: string = userName;
 
   const navigate = useNavigate();
@@ -72,6 +73,32 @@ const CashierForm: React.FC = () => {
     navigate("/login");
   };
 
+  // ----------------------------------------------
+  // NEEDS UPDATE STATE (separated concerns)
+  // ----------------------------------------------
+
+  // Pre-date check (single latest)
+  const [needsUpdateCheck, setNeedsUpdateCheck] = useState<{
+    exists: boolean;
+    business_date?: string;
+    store_name?: string;
+    notes?: string;
+  } | null>(null);
+
+  // List of all Needs Update records
+  const [needsUpdateList, setNeedsUpdateList] = useState<
+    { record_id: string; business_date: string; notes?: string }[]
+  >([]);
+
+  // Active record (selected date)
+  const [needsUpdateActive, setNeedsUpdateActive] = useState<boolean>(false);
+  const [needsUpdateNotes, setNeedsUpdateNotes] = useState<string | null>(null);
+
+  const [checkingNeedsUpdate, setCheckingNeedsUpdate] = useState(false);
+
+  // ----------------------------------------------
+  // LOAD NEEDS UPDATE (ON LOGIN)
+  // ----------------------------------------------
   useEffect(() => {
     if (!storeId) return;
 
@@ -90,62 +117,20 @@ const CashierForm: React.FC = () => {
     runCheck();
   }, [storeId]);
 
-  // ----------------------------------------------
-  // STATE
-  // ----------------------------------------------
-  const [selectedDate, setSelectedDate] = useState<string>("");
-  const [form, setForm] = useState<FormState>({
-    date: "",
-    totalSales: "",
-    netSales: "",
-    cashPayments: "",
-    cardPayments: "",
-    digitalPayments: "",
-    grabPayments: "",
-    voucherPayments: "",
-    bankTransferPayments: "",
-    marketingExpenses: "",
-    kitchenBudget: "",
-    barBudget: "",
-    nonFoodBudget: "",
-    staffMealBudget: "",
-    actualCashCounted: "",
-    cashFloat: "",
-  });
+  useEffect(() => {
+    if (!storeId) return;
 
-  const [originalForm, setOriginalForm] = useState<FormState | null>(null);
+    async function loadNeedsUpdateList() {
+      try {
+        const res = await fetchNeedsUpdateList(storeId);
+        setNeedsUpdateList(res.records || []);
+      } catch (err) {
+        console.error("❌ Failed to load needs update list", err);
+      }
+    }
 
-  const [formErrors, setFormErrors] = useState<
-    Partial<Record<keyof FormState, string>>
-  >({});
-
-  const [recordId, setRecordId] = useState<string | null>(null);
-  const [isLocked, setIsLocked] = useState<boolean>(false);
-  const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const [showUnlockModal, setShowUnlockModal] = useState(false);
-  const [managerPin, setManagerPin] = useState("");
-
-  const lastFetchAbort = useRef<AbortController | null>(null);
-
-  // ----------------------------------------------
-  // NEEDS UPDATE STATE (separated concerns)
-  // ----------------------------------------------
-
-  // Pre-date check (store-level)
-  const [needsUpdateCheck, setNeedsUpdateCheck] = useState<{
-    exists: boolean;
-    business_date?: string;
-    store_name?: string;
-    notes?: string;
-  } | null>(null);
-
-  // Active record (selected date)
-  const [needsUpdateActive, setNeedsUpdateActive] = useState<boolean>(false);
-  const [needsUpdateNotes, setNeedsUpdateNotes] = useState<string | null>(null);
-
-  const [checkingNeedsUpdate, setCheckingNeedsUpdate] = useState(false);
+    loadNeedsUpdateList();
+  }, [storeId]);
 
   // ----------------------------------------------
   // COMPUTED FIELD HELPERS
@@ -464,7 +449,7 @@ const CashierForm: React.FC = () => {
   };
 
   // ----------------------------------------------
-  // UI RENDER BELOW (unchanged)
+  // UI RENDER BELOW (unchanged except Step 4)
   // ----------------------------------------------
   const inputBase =
     "w-full px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50 text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500";
@@ -514,21 +499,35 @@ const CashierForm: React.FC = () => {
               </div>
             </div>
 
-            {/* PRE-DATE NEEDS UPDATE BANNER */}
-            {needsUpdateCheck?.exists && !selectedDate && (
-              <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-                <div className="font-semibold">⚠️ Action Required</div>
-                <div className="mt-1">
-                  A previous closing for <b>{needsUpdateCheck.store_name}</b> on{" "}
-                  <b>{needsUpdateCheck.business_date}</b> needs updating.
+            {/* 🔴 STEP 4 — PRE-DATE NEEDS UPDATE LIST */}
+            {!selectedDate && needsUpdateList?.length > 0 && (
+              <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 space-y-2">
+                <div className="font-semibold flex items-center gap-2">
+                  ⚠️ Closings Requiring Update
                 </div>
-                {needsUpdateCheck.notes && (
-                  <div className="mt-2 text-xs italic text-red-600">
-                    “{needsUpdateCheck.notes}”
-                  </div>
-                )}
-                <div className="mt-2 text-xs text-red-600">
-                  Please select this date to review and resubmit.
+
+                <ul className="space-y-1">
+                  {needsUpdateList.map((item) => (
+                    <li key={item.record_id}>
+                      <button
+                        onClick={() => setSelectedDate(item.business_date)}
+                        className="text-left w-full px-3 py-2 rounded-lg bg-white border border-red-200 hover:bg-red-100 transition"
+                      >
+                        <div className="font-medium">
+                          {item.business_date}
+                        </div>
+                        {item.notes && (
+                          <div className="text-xs italic text-red-600">
+                            “{item.notes}”
+                          </div>
+                        )}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+
+                <div className="text-xs text-red-600">
+                  Select a date above to review and resubmit.
                 </div>
               </div>
             )}
