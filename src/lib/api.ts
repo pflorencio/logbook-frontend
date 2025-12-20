@@ -229,12 +229,16 @@ export async function checkNeedsUpdate(
 // NEEDS UPDATE — LIST (FOR CASHIER LANDING PAGE)
 // -------------------------------------------------------------
 
-export async function fetchNeedsUpdateList(storeName: string) {
+export async function fetchNeedsUpdateList(storeId: string) {
   const res = await fetch(
-    `${BACKEND_URL}/closings/needs-update-list?store_name=${encodeURIComponent(storeName)}`
+    `${BACKEND_URL}/closings/needs-update-list?store_id=${encodeURIComponent(
+      storeId
+    )}`
   );
 
   if (!res.ok) {
+    const text = await res.text();
+    console.error("❌ needs-update-list API error:", text);
     throw new Error("Failed to fetch needs-update list");
   }
 
