@@ -235,14 +235,14 @@ export async function fetchPendingClosings() {
 
 export async function checkNeedsUpdate(storeId: string) {
   const res = await fetch(
-    `${process.env.NEXT_PUBLIC_BACKEND_URL}/closings/needs-update?store_id=${storeId}`
+    `${BACKEND_URL}/closings/needs-update?store_id=${storeId}`
   );
 
   if (!res.ok) {
-    throw new Error("Failed to check needs-update");
+    throw new Error("Needs update check failed");
   }
 
-  return res.json(); // { exists: boolean, business_date?, notes? }
+  return res.json();
 }
 
 // -------------------------------------------------------------
