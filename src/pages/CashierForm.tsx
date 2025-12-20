@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import { fetchUniqueClosing, saveClosing, unlockRecord } from "@/lib/api";
 import { BACKEND_URL } from "@/lib/api";
+import { fetchUniqueClosing, saveClosing, unlockRecord, checkNeedsUpdate } from "@/lib/api";
 
 console.log("🟢 Using backend URL:", BACKEND_URL);
 
@@ -475,7 +476,7 @@ const CashierForm: React.FC = () => {
         <Toaster position="top-center" />
 
         <div className="w-full max-w-3xl flex flex-col">
-          {/* HEADER */}
+         
           {/* HEADER */}
           <header className="mb-6 space-y-3">
             <div className="flex items-center justify-between">
@@ -531,16 +532,16 @@ const CashierForm: React.FC = () => {
 
             {/* IN-FORM NEEDS UPDATE BANNER */}
             {selectedDate && needsUpdateActive && (
-              <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
+              <div className="mt-3 px-4 py-2 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
                 <div className="font-semibold">⚠️ Needs Update</div>
-                <div className="mt-1">
-                  This closing was sent back for correction.
-                </div>
                 {needsUpdateNotes && (
-                  <div className="mt-2 text-xs italic text-red-600">
+                  <div className="mt-1 italic text-red-600">
                     “{needsUpdateNotes}”
                   </div>
                 )}
+                <div className="mt-1 text-xs">
+                  Please update the form and resubmit.
+                </div>
               </div>
             )}
 
@@ -550,23 +551,6 @@ const CashierForm: React.FC = () => {
               </div>
             )}
           </header>
-
-          {/* NEEDS UPDATE — BEFORE DATE SELECTED */}
-          {needsUpdate?.exists && !selectedDate && (
-            <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-              <div className="font-semibold">
-                ⚠️ Action Required
-              </div>
-              <div className="mt-1">
-                A previous closing for{" "}
-                <b>{needsUpdate.store_name}</b> on{" "}
-                <b>{needsUpdate.business_date}</b> needs updating.
-              </div>
-              <div className="mt-2 text-xs text-red-600">
-                Please select this date to review and resubmit.
-              </div>
-            </div>
-          )}
 
           {/* FOOTER ACTIONS */}
           {selectedDate && !loading && (
