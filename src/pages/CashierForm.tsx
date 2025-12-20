@@ -539,35 +539,41 @@ const CashierForm: React.FC = () => {
               </div>
             </div>
 
-            {/* 🔴 STEP 4 — PRE-DATE NEEDS UPDATE LIST */}
-            {!selectedDate && needsUpdateList?.length > 0 && (
+            {/* 🔴 NEEDS UPDATE BANNER — ALWAYS SHOWN */}
+            {!selectedDate && (
               <div className="px-4 py-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700 space-y-2">
                 <div className="font-semibold flex items-center gap-2">
-                  ⚠️ Closings Requiring Update
+                  ⚠️ Previous Closings Review
                 </div>
 
-                <ul className="space-y-1">
-                  {needsUpdateList.map((item) => (
-                    <li key={item.record_id}>
-                      <button
-                        onClick={() => setSelectedDate(item.business_date)}
-                        className="text-left w-full px-3 py-2 rounded-lg bg-white border border-red-200 hover:bg-red-100 transition"
-                      >
-                        <div className="font-medium">
-                          {item.business_date}
-                        </div>
-                        {item.notes && (
-                          <div className="text-xs italic text-red-600">
-                            “{item.notes}”
+                {needsUpdateList.length > 0 ? (
+                  <ul className="space-y-1">
+                    {needsUpdateList.map((item) => (
+                      <li key={item.record_id}>
+                        <button
+                          onClick={() => setSelectedDate(item.business_date)}
+                          className="text-left w-full px-3 py-2 rounded-lg bg-white border border-red-200 hover:bg-red-100 transition"
+                        >
+                          <div className="font-medium">
+                            {item.business_date}
                           </div>
-                        )}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+                          {item.notes && (
+                            <div className="text-xs italic text-red-600">
+                              “{item.notes}”
+                            </div>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-sm text-red-600">
+                    ✅ No previous closings require updates.
+                  </div>
+                )}
 
                 <div className="text-xs text-red-600">
-                  Select a date above to review and resubmit.
+                  Select a date above to review or submit a closing.
                 </div>
               </div>
             )}
