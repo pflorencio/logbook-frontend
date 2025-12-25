@@ -215,6 +215,24 @@ const CashierForm: React.FC = () => {
     });
   }, [form, selectedDate]);
 
+  // ----------------------------------------------
+  // BUDGET CONTEXT (V1 — frontend only)
+  // ----------------------------------------------
+  const weeklyBudget = 70000; // TODO: replace with backend value later
+  const daysInWeek = 7;
+
+  const dailyEnvelope = useMemo(() => {
+    return weeklyBudget / daysInWeek;
+  }, [weeklyBudget, daysInWeek]);
+
+  const remainingWeeklyBudget = useMemo(() => {
+    return weeklyBudget - totalEstimatedSpend;
+  }, [weeklyBudget, totalEstimatedSpend]);
+
+  const aboveEnvelope = useMemo(() => {
+    return Math.max(0, totalEstimatedSpend - dailyEnvelope);
+  }, [totalEstimatedSpend, dailyEnvelope]);
+
   const cashForDeposit = Math.max(0, rawCashForDeposit);
   const transferNeeded =
     rawCashForDeposit < 0 ? Math.abs(rawCashForDeposit) : 0;
@@ -627,7 +645,7 @@ const CashierForm: React.FC = () => {
                   <div className="text-center">
                     <div className="text-xs text-blue-700">Weekly Budget</div>
                     <div className="font-semibold text-blue-900">
-                      ₱70,000
+                      {peso(weeklyBudget)}
                     </div>
                   </div>
 
@@ -635,7 +653,7 @@ const CashierForm: React.FC = () => {
                   <div className="text-center">
                     <div className="text-xs text-blue-700">Remaining This Week</div>
                     <div className="font-semibold text-blue-900">
-                      ₱70,000
+                      {peso(remainingWeeklyBudget)}
                     </div>
                   </div>
 
@@ -643,7 +661,7 @@ const CashierForm: React.FC = () => {
                   <div className="text-center">
                     <div className="text-xs text-blue-700">Daily Envelope (Guide)</div>
                     <div className="font-semibold text-blue-900">
-                      ₱10,000
+                      {peso(dailyEnvelope)}
                     </div>
                   </div>
                 </div>
@@ -777,6 +795,20 @@ const CashierForm: React.FC = () => {
                     {peso(totalEstimatedSpend)}
                   </div>
 
+                  <div className="text-gray-600">Daily Envelope (Guide):</div>
+                  <div className="text-right font-medium">
+                    {peso(dailyEnvelope)}
+                  </div>
+
+                  <div className="text-gray-600">Remaining Weekly Budget:</div>
+                  <div
+                    className={`text-right font-medium ${
+                      remainingWeeklyBudget < 0 ? "text-red-600" : ""
+                    }`}
+                  >
+                    {peso(remainingWeeklyBudget)}
+                  </div>
+
                   <div className="text-gray-600">Cash for Deposit:</div>
                   <div className="text-right font-medium">
                     {peso(cashForDeposit)}
@@ -784,7 +816,7 @@ const CashierForm: React.FC = () => {
 
                   <div className="text-gray-600">Additional Transfer Needed:</div>
                   <div className="text-right font-medium text-red-600">
-                    {transferNeeded > 0 ? peso(transferNeeded) : "₱0"}
+                    {aboveEnvelope > 0 ? peso(aboveEnvelope) : "₱0"}
                   </div>
                 </div>
               </section>
