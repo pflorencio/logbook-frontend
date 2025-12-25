@@ -182,7 +182,7 @@ const CashierForm: React.FC = () => {
     return actual - cash - floatAmt;
   }, [form]);
 
-  const totalBudgets = useMemo(() => {
+  const totalEstimatedSpend = useMemo(() => {
     return (
       (Number(form.kitchenBudget) || 0) +
       (Number(form.barBudget) || 0) +
@@ -194,8 +194,8 @@ const CashierForm: React.FC = () => {
   const rawCashForDeposit = useMemo(() => {
     const actual = Number(form.actualCashCounted) || 0;
     const floatAmt = Number(form.cashFloat) || 0;
-    return actual - floatAmt - totalBudgets;
-  }, [form, totalBudgets]);
+    return actual - floatAmt - totalEstimatedSpend;
+  }, [form, totalEstimatedSpend]);
 
   const isDirty = useMemo(() => {
     if (!originalForm) return false;
@@ -655,18 +655,23 @@ const CashierForm: React.FC = () => {
                 </div>
               </section>
 
-              {/* BUDGETS */}
+              {/* ESTIMATED SPEND */}
               <section className={sectionCard}>
                 <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
-                  Requested Budgets
+                  Estimated Spend for Tomorrow
                 </h2>
+
+                <p className="text-xs text-gray-500 text-center">
+                  Enter the estimated total operational spend for tomorrow. This is used for
+                  planning and weekly budget pacing.
+                </p>
 
                 <div className="grid md:grid-cols-2 gap-4">
                   {([
-                    ["Kitchen Budget", "kitchenBudget"],
-                    ["Bar Budget", "barBudget"],
-                    ["Non-Food Budget", "nonFoodBudget"],
-                    ["Staff Meal Budget", "staffMealBudget"],
+                    ["Kitchen – Estimated Spend", "kitchenBudget"],
+                    ["Bar – Estimated Spend", "barBudget"],
+                    ["Non-Food – Estimated Spend", "nonFoodBudget"],
+                    ["Staff Meals – Estimated Spend", "staffMealBudget"],
                   ] as const).map(([label, field]) => (
                     <div key={field}>
                       <label className="text-xs text-gray-600">{label}</label>
@@ -676,14 +681,10 @@ const CashierForm: React.FC = () => {
                         inputMode="numeric"
                         value={form[field]}
                         onChange={(e) => handleChange(field, e.target.value)}
-                        className={`${inputBase} ${
-                          isLocked ? inputDisabled : ""
-                        }`}
+                        className={`${inputBase} ${isLocked ? inputDisabled : ""}`}
                       />
                       {formErrors[field] && (
-                        <p className="text-xs text-red-500">
-                          {formErrors[field]}
-                        </p>
+                        <p className="text-xs text-red-500">{formErrors[field]}</p>
                       )}
                     </div>
                   ))}
@@ -733,9 +734,9 @@ const CashierForm: React.FC = () => {
                   <div className="text-gray-600">Variance:</div>
                   <div className="text-right font-medium">{peso(variance)}</div>
 
-                  <div className="text-gray-600">Total Budgets:</div>
+                  <div className="text-gray-600">Total Estimated Spend (Tomorrow):</div>
                   <div className="text-right font-medium">
-                    {peso(totalBudgets)}
+                    {peso(totalEstimatedSpend)}
                   </div>
 
                   <div className="text-gray-600">Cash for Deposit:</div>
@@ -743,7 +744,7 @@ const CashierForm: React.FC = () => {
                     {peso(cashForDeposit)}
                   </div>
 
-                  <div className="text-gray-600">Transfer Needed:</div>
+                  <div className="text-gray-600">Additional Transfer Needed:</div>
                   <div className="text-right font-medium text-red-600">
                     {transferNeeded > 0 ? peso(transferNeeded) : "₱0"}
                   </div>
