@@ -191,6 +191,13 @@ const CashierForm: React.FC = () => {
     );
   }, [form]);
 
+  const foodAndBeverageEstimatedSpend = useMemo(() => {
+    return (
+      (Number(form.kitchenBudget) || 0) +
+      (Number(form.barBudget) || 0)
+    );
+  }, [form]);
+
   const rawCashForDeposit = useMemo(() => {
     const actual = Number(form.actualCashCounted) || 0;
     const floatAmt = Number(form.cashFloat) || 0;
@@ -226,12 +233,12 @@ const CashierForm: React.FC = () => {
   }, [weeklyBudget, daysInWeek]);
 
   const remainingWeeklyBudget = useMemo(() => {
-    return weeklyBudget - totalEstimatedSpend;
-  }, [weeklyBudget, totalEstimatedSpend]);
+    return weeklyBudget - foodAndBeverageEstimatedSpend;
+  }, [weeklyBudget, foodAndBeverageEstimatedSpend]);
 
   const aboveEnvelope = useMemo(() => {
-    return Math.max(0, totalEstimatedSpend - dailyEnvelope);
-  }, [totalEstimatedSpend, dailyEnvelope]);
+    return Math.max(0, foodAndBeverageEstimatedSpend - dailyEnvelope);
+  }, [foodAndBeverageEstimatedSpend, dailyEnvelope]);
 
   const cashForDeposit = Math.max(0, rawCashForDeposit);
   const transferNeeded =
@@ -786,37 +793,64 @@ const CashierForm: React.FC = () => {
                   Summary (Preview)
                 </h2>
 
-                <div className="grid grid-cols-2 text-sm gap-y-2">
-                  <div className="text-gray-600">Variance:</div>
-                  <div className="text-right font-medium">{peso(variance)}</div>
-
-                  <div className="text-gray-600">Total Estimated Spend (Tomorrow):</div>
-                  <div className="text-right font-medium">
-                    {peso(totalEstimatedSpend)}
+                {/* FOOD COST CONTROL */}
+                <div className="mb-4">
+                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                    Food Cost Control
                   </div>
 
-                  <div className="text-gray-600">Daily Envelope (Guide):</div>
-                  <div className="text-right font-medium">
-                    {peso(dailyEnvelope)}
+                  <div className="grid grid-cols-2 text-sm gap-y-2">
+                    <div className="text-gray-600">
+                      Food & Beverage Spend (Tomorrow):
+                    </div>
+                    <div className="text-right font-medium">
+                      {peso(foodAndBeverageEstimatedSpend)}
+                    </div>
+
+                    <div className="text-gray-600">Daily Envelope (Guide):</div>
+                    <div className="text-right font-medium">
+                      {peso(dailyEnvelope)}
+                    </div>
+
+                    <div className="text-gray-600">Remaining Weekly Budget:</div>
+                    <div
+                      className={`text-right font-medium ${
+                        remainingWeeklyBudget < 0 ? "text-red-600" : ""
+                      }`}
+                    >
+                      {peso(remainingWeeklyBudget)}
+                    </div>
+
+                    <div className="text-gray-600">Additional Transfer Needed:</div>
+                    <div className="text-right font-medium text-red-600">
+                      {aboveEnvelope > 0 ? peso(aboveEnvelope) : "₱0"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* CASH IMPACT */}
+                <div className="pt-3 border-t border-gray-200">
+                  <div className="text-xs font-semibold text-gray-500 uppercase mb-2">
+                    Cash Impact
                   </div>
 
-                  <div className="text-gray-600">Remaining Weekly Budget:</div>
-                  <div
-                    className={`text-right font-medium ${
-                      remainingWeeklyBudget < 0 ? "text-red-600" : ""
-                    }`}
-                  >
-                    {peso(remainingWeeklyBudget)}
-                  </div>
+                  <div className="grid grid-cols-2 text-sm gap-y-2">
+                    <div className="text-gray-600">
+                      Total Estimated Spend (All Categories):
+                    </div>
+                    <div className="text-right font-medium">
+                      {peso(totalEstimatedSpend)}
+                    </div>
 
-                  <div className="text-gray-600">Cash for Deposit:</div>
-                  <div className="text-right font-medium">
-                    {peso(cashForDeposit)}
-                  </div>
+                    <div className="text-gray-600">Variance:</div>
+                    <div className="text-right font-medium">
+                      {peso(variance)}
+                    </div>
 
-                  <div className="text-gray-600">Additional Transfer Needed:</div>
-                  <div className="text-right font-medium text-red-600">
-                    {aboveEnvelope > 0 ? peso(aboveEnvelope) : "₱0"}
+                    <div className="text-gray-600">Cash for Deposit:</div>
+                    <div className="text-right font-medium">
+                      {peso(cashForDeposit)}
+                    </div>
                   </div>
                 </div>
               </section>
