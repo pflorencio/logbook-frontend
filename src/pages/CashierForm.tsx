@@ -615,6 +615,44 @@ const CashierForm: React.FC = () => {
           {/* MAIN FORM */}
           {selectedDate && !loading && (
             <div className="pb-28 space-y-6">
+              
+              {/* BUDGET CONTEXT — V1 (Read-Only) */}
+              <section className="rounded-2xl bg-blue-50 border border-blue-100 p-4 md:p-5 mb-6">
+                <h3 className="text-sm font-semibold text-blue-900 text-center uppercase mb-3">
+                  Weekly Budget Context
+                </h3>
+
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  {/* Weekly Budget */}
+                  <div className="text-center">
+                    <div className="text-xs text-blue-700">Weekly Budget</div>
+                    <div className="font-semibold text-blue-900">
+                      ₱70,000
+                    </div>
+                  </div>
+
+                  {/* Remaining Weekly Budget */}
+                  <div className="text-center">
+                    <div className="text-xs text-blue-700">Remaining This Week</div>
+                    <div className="font-semibold text-blue-900">
+                      ₱70,000
+                    </div>
+                  </div>
+
+                  {/* Daily Envelope */}
+                  <div className="text-center">
+                    <div className="text-xs text-blue-700">Daily Envelope (Guide)</div>
+                    <div className="font-semibold text-blue-900">
+                      ₱10,000
+                    </div>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs text-blue-700 text-center">
+                  Weekly budget is reduced based on planned daily spend. Daily envelope is a pacing guide, not free spend.
+                </p>
+              </section>
+              
               {/* SALES */}
               <section className={sectionCard}>
                 <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
