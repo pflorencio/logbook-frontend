@@ -20,10 +20,10 @@ export default function VerifyControls({
   const verifiedBy = session.name || "Manager";
 
   const verifiedStatus = record.fields["Verified Status"];
-  const alreadyVerified = verifiedStatus === "Verified";
+  const isVerified = verifiedStatus === "Verified";
 
   async function handleVerify(status: "Verified" | "Needs Update") {
-    if (alreadyVerified) return;
+    if (isVerified && status === "Verified") return;
 
     setLoading(true);
 
@@ -70,18 +70,17 @@ export default function VerifyControls({
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
         placeholder="Add notes for cashier..."
-        disabled={alreadyVerified}
       />
 
-      {alreadyVerified && (
+      {isVerified && (
         <p className="text-sm text-green-700">
-          This closing has already been verified.
+          This closing has been verified. You may still mark it as “Needs Update” if corrections are required.
         </p>
       )}
 
       <div className="flex gap-4">
         <button
-          disabled={loading || alreadyVerified}
+          disabled={loading || isVerified}
           onClick={() => handleVerify("Verified")}
           className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300"
         >
@@ -89,7 +88,7 @@ export default function VerifyControls({
         </button>
 
         <button
-          disabled={loading || alreadyVerified}
+          disabled={loading}
           onClick={() => handleVerify("Needs Update")}
           className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-300"
         >
