@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import ProtectedRoute from "../../components/ProtectedRoute";
 import AdminLayout from "../../components/AdminLayout";
-import * as api from "../../lib/api";
+import { fetchStores, BACKEND_URL } from "../../lib/api";
 
 /* ---------------------------------------------
    Types
@@ -41,14 +41,16 @@ function WeeklyBudgetHistoryPage() {
   const [rows, setRows] = useState<WeeklyBudgetHistoryRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
+
   /* ---------------------------------------------
-     Load Stores (shared admin logic)
+     Load Stores (aligned with api.ts)
   --------------------------------------------- */
   useEffect(() => {
-    api.getStores().then(setStores).catch(() => {
-      setError("Failed to load stores");
-    });
+    fetchStores()
+      .then(setStores)
+      .catch(() => {
+        setError("Failed to load stores");
+      });
   }, []);
 
   /* ---------------------------------------------
@@ -69,7 +71,7 @@ function WeeklyBudgetHistoryPage() {
       if (endDate) params.append("end_date", endDate);
 
       const res = await fetch(
-        `${api.baseUrl}/weekly-budgets/history?${params.toString()}`
+        `${BACKEND_URL}/weekly-budgets/history?${params.toString()}`
       );
 
       if (!res.ok) {
@@ -196,10 +198,7 @@ function WeeklyBudgetHistoryPage() {
           <tbody className="text-sm">
             {rows.length === 0 && !loading && (
               <tr>
-                <td
-                  colSpan={7}
-                  className="text-center text-gray-500 px-4 py-6"
-                >
+                <td colSpan={7} className="text-center text-gray-500 px-4 py-6">
                   No records found
                 </td>
               </tr>
@@ -233,6 +232,7 @@ function WeeklyBudgetHistoryPage() {
               </tr>
             ))}
           </tbody>
+
           <tfoot className="bg-gray-50 border-t text-sm font-semibold">
             <tr>
               <td className="border px-3 py-3">Totals / Averages</td>
