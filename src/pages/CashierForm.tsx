@@ -259,12 +259,16 @@ const CashierForm: React.FC = () => {
   // ----------------------------------------------
   // WEEK HELPERS (for weekly budget lookup)
   // ----------------------------------------------
-  function getMondayISO(dateStr: string): string {
-    // dateStr expected: "YYYY-MM-DD"
+  function getMondayISO(dateStr?: string | null): string | null {
+    if (!dateStr) return null;
+
     const d = new Date(dateStr + "T00:00:00");
-    const day = d.getDay(); // 0=Sun, 1=Mon...
+    if (isNaN(d.getTime())) return null;
+
+    const day = d.getDay(); // 0=Sun
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     d.setDate(diff);
+
     return d.toISOString().split("T")[0];
   }
 
@@ -447,17 +451,24 @@ const CashierForm: React.FC = () => {
     if (!storeId || !selectedDate) return;
 
     const weekStart = getMondayISO(selectedDate);
+    if (!weekStart) {
+      console.warn("⚠️ Invalid weekStart from selectedDate:", selectedDate);
+      setWeeklyBudgetRecord(null);
+      return;
+    }
 
     async function fetchWeeklyBudget() {
       setWeeklyBudgetLoading(true);
       setWeeklyBudgetError(null);
 
       try {
-        const res = await fetch(
-          `${BACKEND_URL}/weekly-budgets?store_id=${encodeURIComponent(
-            storeId
-          )}&week_start=${encodeURIComponent(weekStart)}`
-        );
+        const url = `${BACKEND_URL}/weekly-budgets?store_id=${encodeURIComponent(
+          storeId
+        )}&business_date=${encodeURIComponent(weekStart)}`;
+
+        console.log("📅 Fetching weekly budget:", url);
+
+        const res = await fetch(url);
 
         if (!res.ok) {
           setWeeklyBudgetRecord(null);
