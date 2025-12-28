@@ -79,7 +79,7 @@ function WeeklyBudgetHistoryPage() {
       }
 
       const data = await res.json();
-      setRows(data.records || []);
+      setRows(data.results || []);
     } catch (err: any) {
       setError(err.message || "Something went wrong");
       setRows([]);
