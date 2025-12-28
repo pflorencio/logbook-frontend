@@ -70,13 +70,32 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             📝 For Verification
           </Link>
 
-          <Link
-            to="/admin/weekly-budgets"
-            className={`block px-4 py-2 rounded-lg ${isActive("/admin/weekly-budgets")}`}
-          >
-            💰 Weekly Budgets
-          </Link>
+          {/* ============================= */}
+          {/* Weekly Budgets Section */}
+          {/* ============================= */}
+          <div className="mt-4">
+            <p className="px-4 mb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+              Weekly Budgets
+            </p>
 
+            <Link
+              to="/admin/weekly-budgets"
+              className={`block px-6 py-2 rounded-lg ${isActive("/admin/weekly-budgets")}`}
+            >
+              💰 Manage Weekly Budget
+            </Link>
+
+            <Link
+              to="/admin/weekly-budget-history"
+              className={`block px-6 py-2 rounded-lg ${isActive("/admin/weekly-budget-history")}`}
+            >
+              📜 Budget History
+            </Link>
+          </div>
+
+          {/* ============================= */}
+          {/* Reports */}
+          {/* ============================= */}
           <Link
             to="/admin/reports"
             className={`block px-4 py-2 rounded-lg ${isActive("/admin/reports")}`}
