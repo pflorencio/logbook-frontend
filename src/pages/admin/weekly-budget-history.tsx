@@ -67,8 +67,8 @@ function WeeklyBudgetHistoryPage() {
         store_id: storeId,
       });
 
-      if (startDate) params.append("start_date", startDate);
-      if (endDate) params.append("end_date", endDate);
+      if (startDate) params.append("from_date", startDate);
+      if (endDate) params.append("to_date", endDate);
 
       const res = await fetch(
         `${BACKEND_URL}/weekly-budgets/history?${params.toString()}`
