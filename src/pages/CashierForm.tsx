@@ -456,7 +456,7 @@ const CashierForm: React.FC = () => {
         const res = await fetch(
           `${BACKEND_URL}/weekly-budgets?store_id=${encodeURIComponent(
             storeId
-          )}&business_date=${encodeURIComponent(weekStart)}`
+          )}&week_start=${encodeURIComponent(weekStart)}`
         );
 
         if (!res.ok) {
