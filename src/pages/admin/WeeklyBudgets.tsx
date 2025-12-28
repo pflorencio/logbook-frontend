@@ -7,20 +7,17 @@ const API_BASE =
 
 type BudgetStatus = "draft" | "locked";
 
-export default function WeeklyBudgets() {
-  // ------------------------------
-  // Session / Store Access
-  // ------------------------------
-  const sessionRaw = localStorage.getItem("session");
-  const session = sessionRaw ? JSON.parse(sessionRaw) : {};
-  const stores = session.storeAccess || [];
+type Store = {
+  id: string;
+  name: string;
+};
 
+export default function WeeklyBudgets() {
   // ------------------------------
   // State
   // ------------------------------
-  const [storeId, setStoreId] = useState<string>(
-    stores.length === 1 ? stores[0].id : ""
-  );
+  const [stores, setStores] = useState<Store[]>([]);
+  const [storeId, setStoreId] = useState<string>("");
 
   const [weekStart, setWeekStart] = useState<string>("");
 
@@ -66,7 +63,20 @@ export default function WeeklyBudgets() {
   }
 
   // ------------------------------
-  // Init current week (Monday)
+  // Load stores
+  // ------------------------------
+  useEffect(() => {
+    const fetchStores = async () => {
+      const res = await fetch(`${API_BASE}/stores`);
+      const data = await res.json();
+      setStores(data || []);
+    };
+
+    fetchStores();
+  }, []);
+
+  // ------------------------------
+  // Init current week
   // ------------------------------
   useEffect(() => {
     if (!weekStart) {
@@ -93,7 +103,7 @@ export default function WeeklyBudgets() {
         if (res.ok) {
           const data = await res.json();
 
-          if (!data || Object.keys(data).length === 0) {
+          if (!data || !data.week_start) {
             setKitchenBudget(0);
             setBarBudget(0);
             setStatus("draft");
@@ -125,7 +135,7 @@ export default function WeeklyBudgets() {
   // Save
   // ------------------------------
   async function handleSave() {
-    if (status === "locked" || isPastWeek || !storeId) return;
+    if (!storeId || status === "locked" || isPastWeek) return;
 
     setLoading(true);
     setError(null);
@@ -136,7 +146,7 @@ export default function WeeklyBudgets() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           store_id: storeId,
-          business_date: weekStart,
+          week_start: weekStart, // ✅ FIXED
           kitchen_budget: kitchenBudget,
           bar_budget: barBudget,
         }),
@@ -173,7 +183,7 @@ export default function WeeklyBudgets() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           store_id: storeId,
-          business_date: weekStart,
+          week_start: weekStart,
           locked_by: "Admin",
         }),
       });
@@ -189,8 +199,7 @@ export default function WeeklyBudgets() {
     }
   }
 
-  const inputsDisabled =
-    status === "locked" || isPastWeek || loading || !storeId;
+  const inputsDisabled = status === "locked" || isPastWeek || loading;
 
   // ------------------------------
   // Render
@@ -200,53 +209,57 @@ export default function WeeklyBudgets() {
       <div className="max-w-3xl">
         <h1 className="text-2xl font-semibold mb-6">Weekly Budget Setup</h1>
 
-        <div className="mb-6 space-y-3">
-          {/* Store Picker */}
-          <div>
-            <label className="block text-sm text-gray-600">Store</label>
-            <select
-              value={storeId}
-              onChange={(e) => setStoreId(e.target.value)}
-              className="border rounded px-3 py-2 w-full"
-            >
-              <option value="" disabled>
-                Select store
+        {/* Store Picker */}
+        <div className="mb-4">
+          <label className="block text-sm text-gray-600">Store</label>
+          <select
+            value={storeId}
+            onChange={(e) => {
+              const id = e.target.value;
+              setStoreId(id);
+
+              const store = stores.find((s) => s.id === id);
+              if (store) {
+                localStorage.setItem(
+                  "currentStore",
+                  JSON.stringify(store)
+                );
+              }
+            }}
+            className="border rounded px-3 py-2 w-full"
+          >
+            <option value="">Select store</option>
+            {stores.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
               </option>
-              {stores.map((store: any) => (
-                <option key={store.id} value={store.id}>
-                  {store.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            ))}
+          </select>
+        </div>
 
-          {/* Week Picker */}
-          <div>
-            <label className="block text-sm text-gray-600">
-              Week (Monday)
-            </label>
-            <input
-              type="date"
-              value={weekStart}
-              min={formatDate(getMonday(new Date()))}
-              onChange={(e) => {
-                const selected = new Date(e.target.value);
-                const monday = getMonday(selected);
-                setWeekStart(formatDate(monday));
-              }}
-              className="border rounded px-3 py-2"
-            />
-            {weekStart && (
-              <p className="text-sm text-gray-600 mt-1">
-                Week: <strong>{formatWeekRange(weekStart)}</strong>
-              </p>
-            )}
-            <p className="text-xs text-gray-500">
-              Budget applies to the full week (Monday–Sunday)
+        {/* Week Picker */}
+        <div className="mb-6 space-y-2">
+          <label className="block text-sm text-gray-600">Week (Monday)</label>
+          <input
+            type="date"
+            value={weekStart}
+            onChange={(e) => {
+              const monday = getMonday(new Date(e.target.value));
+              setWeekStart(formatDate(monday));
+            }}
+            className="border rounded px-3 py-2"
+          />
+
+          {weekStart && (
+            <p className="text-sm text-gray-600">
+              Week: <strong>{formatWeekRange(weekStart)}</strong>
             </p>
-          </div>
+          )}
 
-          {/* Status */}
+          <p className="text-xs text-gray-500">
+            Budget applies to the full week (Monday–Sunday)
+          </p>
+
           <div className="text-sm">
             Status:{" "}
             <span
@@ -265,6 +278,7 @@ export default function WeeklyBudgets() {
           )}
         </div>
 
+        {/* Budget Inputs */}
         <div className="border rounded p-4 space-y-4">
           <div>
             <label className="block text-sm">Kitchen Weekly Budget</label>
@@ -287,7 +301,9 @@ export default function WeeklyBudgets() {
               min={0}
               disabled={inputsDisabled}
               value={barBudget}
-              onChange={(e) => setBarBudget(Number(e.target.value) || 0)}
+              onChange={(e) =>
+                setBarBudget(Number(e.target.value) || 0)
+              }
               className="border rounded px-3 py-2 w-full"
             />
           </div>
@@ -300,11 +316,12 @@ export default function WeeklyBudgets() {
           </div>
         </div>
 
-        {status === "draft" && !isPastWeek && storeId && (
+        {/* Actions */}
+        {status === "draft" && !isPastWeek && (
           <div className="mt-6 flex gap-3">
             <button
               onClick={handleSave}
-              disabled={loading}
+              disabled={loading || !storeId}
               className="px-4 py-2 bg-black text-white rounded disabled:opacity-50"
             >
               Save Budget
