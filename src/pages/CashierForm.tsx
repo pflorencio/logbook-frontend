@@ -460,22 +460,19 @@ const CashierForm: React.FC = () => {
         );
 
         if (!res.ok) {
-          // If no budget exists, your API might return 200 with empty payload,
-          // or 404/400 depending on implementation.
           setWeeklyBudgetRecord(null);
           return;
         }
 
         const data = await res.json();
 
-        // Normalize "no record" cases
         if (!data || !data.week_start) {
           setWeeklyBudgetRecord(null);
           return;
         }
 
         setWeeklyBudgetRecord(data);
-      } catch (err: any) {
+      } catch (err) {
         console.error("❌ Failed to fetch weekly budget:", err);
         setWeeklyBudgetRecord(null);
         setWeeklyBudgetError("Unable to load weekly budget context.");
