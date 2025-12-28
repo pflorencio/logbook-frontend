@@ -62,20 +62,24 @@ export default function WeeklyBudgets() {
 
       try {
         const res = await fetch(
-          `${API_BASE}/weekly-budgets?store_id=${storeId}&week_start=${weekStart}`
+          `${API_BASE}/weekly-budgets?store_id=${storeId}&business_date=${weekStart}`
         );
 
-        if (res.status === 404) {
-          setKitchenBudget(0);
-          setBarBudget(0);
-          setStatus("draft");
-          setHasSaved(false);
-        } else if (res.ok) {
+        if (res.ok) {
           const data = await res.json();
-          setKitchenBudget(data.kitchen_budget || 0);
-          setBarBudget(data.bar_budget || 0);
-          setStatus(data.status === "locked" ? "locked" : "draft");
-          setHasSaved(true);
+
+          if (!data || Object.keys(data).length === 0 || !data.week_start) {
+            // No budget exists yet
+            setKitchenBudget(0);
+            setBarBudget(0);
+            setStatus("draft");
+            setHasSaved(false);
+          } else {
+            setKitchenBudget(data.kitchen_budget || 0);
+            setBarBudget(data.bar_budget || 0);
+            setStatus(data.status === "locked" ? "locked" : "draft");
+            setHasSaved(true);
+          }
         } else {
           throw new Error("Failed to load weekly budget");
         }
@@ -108,7 +112,7 @@ export default function WeeklyBudgets() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           store_id: storeId,
-          week_start: weekStart,
+          business_date: weekStart,
           kitchen_budget: kitchenBudget,
           bar_budget: barBudget,
         }),
@@ -145,7 +149,7 @@ export default function WeeklyBudgets() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           store_id: storeId,
-          week_start: weekStart,
+          business_date: weekStart,
           locked_by: "Admin",
         }),
       });
