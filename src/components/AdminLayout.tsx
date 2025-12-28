@@ -149,8 +149,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Top Header */}
         <header className="w-full bg-white border-b px-8 py-4 flex items-center justify-between shadow-sm">
           <div>
-            <p className="text-sm text-gray-500">Current Store</p>
-            <p className="font-semibold text-gray-900">{store}</p>
+            <p className="text-sm text-gray-500">Management Portal</p>
+            <p className="font-semibold text-gray-900">Admin Console</p>
           </div>
 
           <div className="flex items-center gap-3">
