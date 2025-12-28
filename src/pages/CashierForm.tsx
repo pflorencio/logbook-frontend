@@ -54,6 +54,20 @@ const numericFields: (keyof FormState)[] = [
   "cashFloat",
 ];
 
+const pesoFormatter = useMemo(
+  () =>
+    new Intl.NumberFormat("en-PH", {
+      style: "currency",
+      currency: "PHP",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }),
+  []
+);
+
+const formatPeso = (value?: string | number) =>
+pesoFormatter.format(Number(value) || 0);
+
 const CashierForm: React.FC = () => {
   console.log("🧾 CashierForm v11 — with fetch debugging enabled");
 
@@ -753,19 +767,19 @@ const CashierForm: React.FC = () => {
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div className="text-center">
                         <div className="text-xs text-blue-700">Weekly Budget</div>
-                        <div className="font-semibold text-blue-900">{peso(weeklyBudget)}</div>
+                        <div className="font-semibold text-blue-900">{formatPeso(weeklyBudget)}</div>
                       </div>
 
                       <div className="text-center">
                         <div className="text-xs text-blue-700">Remaining This Week</div>
                         <div className="font-semibold text-blue-900">
-                          {peso(remainingWeeklyBudget)}
+                          {formatPeso(remainingWeeklyBudget)}
                         </div>
                       </div>
 
                       <div className="text-center">
                         <div className="text-xs text-blue-700">Daily Envelope (Guide)</div>
-                        <div className="font-semibold text-blue-900">{peso(dailyEnvelope)}</div>
+                        <div className="font-semibold text-blue-900">{formatPeso(dailyEnvelope)}</div>
                       </div>
                     </div>
 
@@ -906,12 +920,12 @@ const CashierForm: React.FC = () => {
                       Food & Beverage Spend (Tomorrow):
                     </div>
                     <div className="text-right font-medium">
-                      {peso(foodAndBeverageEstimatedSpend)}
+                      {formatPeso(foodAndBeverageEstimatedSpend)}
                     </div>
 
                     <div className="text-gray-600">Daily Envelope (Guide):</div>
                     <div className="text-right font-medium">
-                      {peso(dailyEnvelope)}
+                      {formatPeso(dailyEnvelope)}
                     </div>
 
                     <div className="text-gray-600">Remaining Weekly Budget:</div>
@@ -920,12 +934,12 @@ const CashierForm: React.FC = () => {
                         remainingWeeklyBudget < 0 ? "text-red-600" : ""
                       }`}
                     >
-                      {peso(remainingWeeklyBudget)}
+                      {formatPeso(remainingWeeklyBudget)}
                     </div>
 
                     <div className="text-gray-600">Additional Transfer Needed:</div>
                     <div className="text-right font-medium text-red-600">
-                      {aboveEnvelope > 0 ? peso(aboveEnvelope) : "₱0"}
+                      {aboveEnvelope > 0 ? formatPeso(aboveEnvelope) : "₱0"}
                     </div>
                   </div>
                 </div>
@@ -941,17 +955,17 @@ const CashierForm: React.FC = () => {
                       Total Estimated Spend (All Categories):
                     </div>
                     <div className="text-right font-medium">
-                      {peso(totalEstimatedSpend)}
+                      {formatPeso(totalEstimatedSpend)}
                     </div>
 
                     <div className="text-gray-600">Variance:</div>
                     <div className="text-right font-medium">
-                      {peso(variance)}
+                      {formatPeso(variance)}
                     </div>
 
                     <div className="text-gray-600">Cash for Deposit:</div>
                     <div className="text-right font-medium">
-                      {peso(cashForDeposit)}
+                      {formatPeso(rawCashForDeposit)}
                     </div>
                   </div>
                 </div>
