@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import ProtectedRoute from "@/components/ProtectedRoute";
-import AdminLayout from "@/components/admin/AdminLayout";
-import api from "@/lib/api";
+import ProtectedRoute from "../../components/ProtectedRoute";
+import AdminLayout from "../../components/AdminLayout";
+import * as api from "../../lib/api";
 
 /* ---------------------------------------------
    Types

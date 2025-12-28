@@ -23,6 +23,7 @@ import AdminReports from "./pages/admin/reports";
 import AdminSettings from "./pages/admin/settings";
 import VerificationQueue from "./pages/admin/verification-queue";
 import WeeklyBudgets from "./pages/admin/WeeklyBudgets";
+import WeeklyBudgetHistory from "@/pages/admin/weekly-budget-history";
 
 // Admin Login
 import AdminLogin from "./pages/admin-login";
@@ -167,6 +168,15 @@ export default function App() {
             element={
               <ProtectedRoute roles={["admin", "manager"]}>
                 <WeeklyBudgets />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/weekly-budget-history"
+            element={
+              <ProtectedRoute roles={["admin", "manager"]}>
+                <WeeklyBudgetHistory />
               </ProtectedRoute>
             }
           />
