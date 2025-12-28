@@ -54,19 +54,15 @@ const numericFields: (keyof FormState)[] = [
   "cashFloat",
 ];
 
-const pesoFormatter = useMemo(
-  () =>
-    new Intl.NumberFormat("en-PH", {
-      style: "currency",
-      currency: "PHP",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }),
-  []
-);
+const pesoFormatter = new Intl.NumberFormat("en-PH", {
+  style: "currency",
+  currency: "PHP",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
 
 const formatPeso = (value?: string | number) =>
-pesoFormatter.format(Number(value) || 0);
+  pesoFormatter.format(Number(value) || 0);
 
 const CashierForm: React.FC = () => {
   console.log("🧾 CashierForm v11 — with fetch debugging enabled");
