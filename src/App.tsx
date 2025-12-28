@@ -22,6 +22,7 @@ import AdminUsers from "./pages/admin/users";
 import AdminReports from "./pages/admin/reports";
 import AdminSettings from "./pages/admin/settings";
 import VerificationQueue from "./pages/admin/verification-queue";
+import WeeklyBudgets from "./pages/admin/WeeklyBudgets";
 
 // Admin Login
 import AdminLogin from "./pages/admin-login";
@@ -157,6 +158,15 @@ export default function App() {
             element={
               <ProtectedRoute roles={["admin"]}>
                 <AdminSettings />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/weekly-budgets"
+            element={
+              <ProtectedRoute roles={["admin", "manager"]}>
+                <WeeklyBudgets />
               </ProtectedRoute>
             }
           />

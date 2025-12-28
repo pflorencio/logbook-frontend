@@ -1,17 +1,16 @@
 import { useEffect, useState } from "react";
-import { useRouter } from "next/router";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ||
+  import.meta.env.VITE_API_BASE ||
   "https://restaurant-ops-backend.onrender.com";
 
 type BudgetStatus = "draft" | "locked";
 
-export default function WeeklyBudgetsPage() {
-  const router = useRouter();
-
-  // ---- Core State ----
-  const [storeId, setStoreId] = useState<string>("recFhwPiq5KJIoofp"); // default for now
+export default function WeeklyBudgets() {
+  // ------------------------------
+  // State
+  // ------------------------------
+  const [storeId, setStoreId] = useState<string>("recFhwPiq5KJIoofp"); // temp default
   const [weekStart, setWeekStart] = useState<string>("");
 
   const [kitchenBudget, setKitchenBudget] = useState<number>(0);
@@ -26,7 +25,9 @@ export default function WeeklyBudgetsPage() {
 
   const totalBudget = kitchenBudget + barBudget;
 
-  // ---- Helpers ----
+  // ------------------------------
+  // Helpers
+  // ------------------------------
   function getMonday(date: Date) {
     const d = new Date(date);
     const day = d.getDay();
@@ -38,7 +39,9 @@ export default function WeeklyBudgetsPage() {
     return date.toISOString().split("T")[0];
   }
 
-  // ---- Initialize week to current Monday ----
+  // ------------------------------
+  // Init current week (Monday)
+  // ------------------------------
   useEffect(() => {
     if (!weekStart) {
       const monday = getMonday(new Date());
@@ -46,7 +49,9 @@ export default function WeeklyBudgetsPage() {
     }
   }, [weekStart]);
 
-  // ---- Fetch budget when store/week changes ----
+  // ------------------------------
+  // Fetch weekly budget
+  // ------------------------------
   useEffect(() => {
     if (!storeId || !weekStart) return;
 
@@ -60,7 +65,6 @@ export default function WeeklyBudgetsPage() {
         );
 
         if (res.status === 404) {
-          // No budget yet
           setKitchenBudget(0);
           setBarBudget(0);
           setStatus("draft");
@@ -75,7 +79,6 @@ export default function WeeklyBudgetsPage() {
           throw new Error("Failed to load weekly budget");
         }
 
-        // Past week guard
         const selected = new Date(weekStart);
         const currentMonday = getMonday(new Date());
         setIsPastWeek(selected < currentMonday);
@@ -89,7 +92,9 @@ export default function WeeklyBudgetsPage() {
     fetchBudget();
   }, [storeId, weekStart]);
 
-  // ---- Save Budget ----
+  // ------------------------------
+  // Save
+  // ------------------------------
   async function handleSave() {
     if (status === "locked" || isPastWeek) return;
 
@@ -119,7 +124,9 @@ export default function WeeklyBudgetsPage() {
     }
   }
 
-  // ---- Lock Budget ----
+  // ------------------------------
+  // Lock
+  // ------------------------------
   async function handleLock() {
     if (!hasSaved || status === "locked") return;
 
@@ -155,11 +162,13 @@ export default function WeeklyBudgetsPage() {
 
   const inputsDisabled = status === "locked" || isPastWeek || loading;
 
+  // ------------------------------
+  // Render
+  // ------------------------------
   return (
-    <div className="p-6 max-w-3xl">
-      <h1 className="text-2xl font-semibold mb-4">Weekly Budget Setup</h1>
+    <div className="max-w-3xl">
+      <h1 className="text-2xl font-semibold mb-6">Weekly Budget Setup</h1>
 
-      {/* Context */}
       <div className="mb-6 space-y-2">
         <div>
           <label className="block text-sm text-gray-600">Week (Monday)</label>
@@ -171,33 +180,32 @@ export default function WeeklyBudgetsPage() {
           />
         </div>
 
-        <div>
-          <span className="text-sm font-medium">
-            Status:{" "}
-            {status === "locked" ? (
-              <span className="text-blue-600">Locked</span>
-            ) : (
-              <span className="text-yellow-600">Draft</span>
-            )}
+        <div className="text-sm">
+          Status:{" "}
+          <span
+            className={
+              status === "locked" ? "text-blue-600" : "text-yellow-600"
+            }
+          >
+            {status === "locked" ? "Locked" : "Draft"}
           </span>
         </div>
 
         {isPastWeek && (
-          <div className="text-sm text-red-600">
+          <p className="text-sm text-red-600">
             Past weeks cannot be edited.
-          </div>
+          </p>
         )}
       </div>
 
-      {/* Budget Card */}
       <div className="border rounded p-4 space-y-4">
         <div>
           <label className="block text-sm">Kitchen Weekly Budget</label>
           <input
             type="number"
             min={0}
-            value={kitchenBudget}
             disabled={inputsDisabled}
+            value={kitchenBudget}
             onChange={(e) =>
               setKitchenBudget(Number(e.target.value) || 0)
             }
@@ -210,47 +218,44 @@ export default function WeeklyBudgetsPage() {
           <input
             type="number"
             min={0}
-            value={barBudget}
             disabled={inputsDisabled}
+            value={barBudget}
             onChange={(e) => setBarBudget(Number(e.target.value) || 0)}
             className="border rounded px-3 py-2 w-full"
           />
         </div>
 
-        <div className="pt-2 border-t">
-          <div className="text-sm text-gray-600">Total Weekly Budget</div>
-          <div className="text-lg font-semibold">
+        <div className="pt-3 border-t">
+          <p className="text-sm text-gray-600">Total Weekly Budget</p>
+          <p className="text-lg font-semibold">
             ₱ {totalBudget.toLocaleString()}
-          </div>
+          </p>
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="mt-6 flex gap-3">
-        {status === "draft" && !isPastWeek && (
-          <>
+      {status === "draft" && !isPastWeek && (
+        <div className="mt-6 flex gap-3">
+          <button
+            onClick={handleSave}
+            disabled={loading}
+            className="px-4 py-2 bg-black text-white rounded disabled:opacity-50"
+          >
+            Save Budget
+          </button>
+
+          {hasSaved && (
             <button
-              onClick={handleSave}
+              onClick={handleLock}
               disabled={loading}
-              className="px-4 py-2 bg-black text-white rounded disabled:opacity-50"
+              className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
             >
-              Save Budget
+              Lock Budget
             </button>
+          )}
+        </div>
+      )}
 
-            {hasSaved && (
-              <button
-                onClick={handleLock}
-                disabled={loading}
-                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
-              >
-                Lock Budget
-              </button>
-            )}
-          </>
-        )}
-      </div>
-
-      {error && <div className="mt-4 text-red-600">{error}</div>}
+      {error && <p className="mt-4 text-red-600">{error}</p>}
     </div>
   );
 }
