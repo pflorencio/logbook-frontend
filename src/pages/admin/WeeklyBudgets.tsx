@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import AdminLayout from "../../components/AdminLayout";
 
 const API_BASE =
   import.meta.env.VITE_API_BASE ||
@@ -166,96 +167,107 @@ export default function WeeklyBudgets() {
   // Render
   // ------------------------------
   return (
-    <div className="max-w-3xl">
-      <h1 className="text-2xl font-semibold mb-6">Weekly Budget Setup</h1>
+    <AdminLayout>
+      <div className="max-w-3xl">
+        <h1 className="text-2xl font-semibold mb-6">Weekly Budget Setup</h1>
 
-      <div className="mb-6 space-y-2">
-        <div>
-          <label className="block text-sm text-gray-600">Week (Monday)</label>
-          <input
-            type="date"
-            value={weekStart}
-            onChange={(e) => setWeekStart(e.target.value)}
-            className="border rounded px-3 py-2"
-          />
-        </div>
+        <div className="mb-6 space-y-2">
+          <div>
+            <label className="block text-sm text-gray-600">
+              Week (Monday)
+            </label>
+            <input
+              type="date"
+              value={weekStart}
+              onChange={(e) => {
+                const selected = new Date(e.target.value);
+                const monday = getMonday(selected);
+                setWeekStart(formatDate(monday));
+              }}
+              className="border rounded px-3 py-2"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Budget applies to the full week (Monday–Sunday)
+            </p>
+          </div>
 
-        <div className="text-sm">
-          Status:{" "}
-          <span
-            className={
-              status === "locked" ? "text-blue-600" : "text-yellow-600"
-            }
-          >
-            {status === "locked" ? "Locked" : "Draft"}
-          </span>
-        </div>
-
-        {isPastWeek && (
-          <p className="text-sm text-red-600">
-            Past weeks cannot be edited.
-          </p>
-        )}
-      </div>
-
-      <div className="border rounded p-4 space-y-4">
-        <div>
-          <label className="block text-sm">Kitchen Weekly Budget</label>
-          <input
-            type="number"
-            min={0}
-            disabled={inputsDisabled}
-            value={kitchenBudget}
-            onChange={(e) =>
-              setKitchenBudget(Number(e.target.value) || 0)
-            }
-            className="border rounded px-3 py-2 w-full"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm">Bar Weekly Budget</label>
-          <input
-            type="number"
-            min={0}
-            disabled={inputsDisabled}
-            value={barBudget}
-            onChange={(e) => setBarBudget(Number(e.target.value) || 0)}
-            className="border rounded px-3 py-2 w-full"
-          />
-        </div>
-
-        <div className="pt-3 border-t">
-          <p className="text-sm text-gray-600">Total Weekly Budget</p>
-          <p className="text-lg font-semibold">
-            ₱ {totalBudget.toLocaleString()}
-          </p>
-        </div>
-      </div>
-
-      {status === "draft" && !isPastWeek && (
-        <div className="mt-6 flex gap-3">
-          <button
-            onClick={handleSave}
-            disabled={loading}
-            className="px-4 py-2 bg-black text-white rounded disabled:opacity-50"
-          >
-            Save Budget
-          </button>
-
-          {hasSaved && (
-            <button
-              onClick={handleLock}
-              disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+          <div className="text-sm">
+            Status:{" "}
+            <span
+              className={
+                status === "locked" ? "text-blue-600" : "text-yellow-600"
+              }
             >
-              Lock Budget
-            </button>
+              {status === "locked" ? "Locked" : "Draft"}
+            </span>
+          </div>
+
+          {isPastWeek && (
+            <p className="text-sm text-red-600">
+              Past weeks cannot be edited.
+            </p>
           )}
         </div>
-      )}
 
-      {error && <p className="mt-4 text-red-600">{error}</p>}
-    </div>
+        <div className="border rounded p-4 space-y-4">
+          <div>
+            <label className="block text-sm">Kitchen Weekly Budget</label>
+            <input
+              type="number"
+              min={0}
+              disabled={inputsDisabled}
+              value={kitchenBudget}
+              onChange={(e) =>
+                setKitchenBudget(Number(e.target.value) || 0)
+              }
+              className="border rounded px-3 py-2 w-full"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm">Bar Weekly Budget</label>
+            <input
+              type="number"
+              min={0}
+              disabled={inputsDisabled}
+              value={barBudget}
+              onChange={(e) => setBarBudget(Number(e.target.value) || 0)}
+              className="border rounded px-3 py-2 w-full"
+            />
+          </div>
+
+          <div className="pt-3 border-t">
+            <p className="text-sm text-gray-600">Total Weekly Budget</p>
+            <p className="text-lg font-semibold">
+              ₱ {totalBudget.toLocaleString()}
+            </p>
+          </div>
+        </div>
+
+        {status === "draft" && !isPastWeek && (
+          <div className="mt-6 flex gap-3">
+            <button
+              onClick={handleSave}
+              disabled={loading}
+              className="px-4 py-2 bg-black text-white rounded disabled:opacity-50"
+            >
+              Save Budget
+            </button>
+
+            {hasSaved && (
+              <button
+                onClick={handleLock}
+                disabled={loading}
+                className="px-4 py-2 bg-blue-600 text-white rounded disabled:opacity-50"
+              >
+                Lock Budget
+              </button>
+            )}
+          </div>
+        )}
+
+        {error && <p className="mt-4 text-red-600">{error}</p>}
+      </div>
+    </AdminLayout>
   );
 }
