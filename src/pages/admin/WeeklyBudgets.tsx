@@ -9,9 +9,19 @@ type BudgetStatus = "draft" | "locked";
 
 export default function WeeklyBudgets() {
   // ------------------------------
+  // Session / Store Access
+  // ------------------------------
+  const sessionRaw = localStorage.getItem("session");
+  const session = sessionRaw ? JSON.parse(sessionRaw) : {};
+  const stores = session.storeAccess || [];
+
+  // ------------------------------
   // State
   // ------------------------------
-  const [storeId, setStoreId] = useState<string>("recFhwPiq5KJIoofp"); // temp default
+  const [storeId, setStoreId] = useState<string>(
+    stores.length === 1 ? stores[0].id : ""
+  );
+
   const [weekStart, setWeekStart] = useState<string>("");
 
   const [kitchenBudget, setKitchenBudget] = useState<number>(0);
@@ -38,6 +48,21 @@ export default function WeeklyBudgets() {
 
   function formatDate(date: Date) {
     return date.toISOString().split("T")[0];
+  }
+
+  function formatWeekRange(monday: string) {
+    const start = new Date(monday);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+
+    return `${start.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+    })} – ${end.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    })}`;
   }
 
   // ------------------------------
@@ -68,8 +93,7 @@ export default function WeeklyBudgets() {
         if (res.ok) {
           const data = await res.json();
 
-          if (!data || Object.keys(data).length === 0 || !data.week_start) {
-            // No budget exists yet
+          if (!data || Object.keys(data).length === 0) {
             setKitchenBudget(0);
             setBarBudget(0);
             setStatus("draft");
@@ -101,7 +125,7 @@ export default function WeeklyBudgets() {
   // Save
   // ------------------------------
   async function handleSave() {
-    if (status === "locked" || isPastWeek) return;
+    if (status === "locked" || isPastWeek || !storeId) return;
 
     setLoading(true);
     setError(null);
@@ -165,7 +189,8 @@ export default function WeeklyBudgets() {
     }
   }
 
-  const inputsDisabled = status === "locked" || isPastWeek || loading;
+  const inputsDisabled =
+    status === "locked" || isPastWeek || loading || !storeId;
 
   // ------------------------------
   // Render
@@ -175,7 +200,27 @@ export default function WeeklyBudgets() {
       <div className="max-w-3xl">
         <h1 className="text-2xl font-semibold mb-6">Weekly Budget Setup</h1>
 
-        <div className="mb-6 space-y-2">
+        <div className="mb-6 space-y-3">
+          {/* Store Picker */}
+          <div>
+            <label className="block text-sm text-gray-600">Store</label>
+            <select
+              value={storeId}
+              onChange={(e) => setStoreId(e.target.value)}
+              className="border rounded px-3 py-2 w-full"
+            >
+              <option value="" disabled>
+                Select store
+              </option>
+              {stores.map((store: any) => (
+                <option key={store.id} value={store.id}>
+                  {store.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Week Picker */}
           <div>
             <label className="block text-sm text-gray-600">
               Week (Monday)
@@ -183,6 +228,7 @@ export default function WeeklyBudgets() {
             <input
               type="date"
               value={weekStart}
+              min={formatDate(getMonday(new Date()))}
               onChange={(e) => {
                 const selected = new Date(e.target.value);
                 const monday = getMonday(selected);
@@ -190,11 +236,17 @@ export default function WeeklyBudgets() {
               }}
               className="border rounded px-3 py-2"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            {weekStart && (
+              <p className="text-sm text-gray-600 mt-1">
+                Week: <strong>{formatWeekRange(weekStart)}</strong>
+              </p>
+            )}
+            <p className="text-xs text-gray-500">
               Budget applies to the full week (Monday–Sunday)
             </p>
           </div>
 
+          {/* Status */}
           <div className="text-sm">
             Status:{" "}
             <span
@@ -248,7 +300,7 @@ export default function WeeklyBudgets() {
           </div>
         </div>
 
-        {status === "draft" && !isPastWeek && (
+        {status === "draft" && !isPastWeek && storeId && (
           <div className="mt-6 flex gap-3">
             <button
               onClick={handleSave}
