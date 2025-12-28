@@ -173,6 +173,30 @@ const CashierForm: React.FC = () => {
   const lastFetchAbort = useRef<AbortController | null>(null);
 
   // ----------------------------------------------
+  // WEEKLY BUDGET CONTEXT (from backend)
+  // ----------------------------------------------
+  type WeeklyBudgetRecord = {
+    store_id: string;
+    week_start: string;
+    week_end: string;
+    weekly_budget?: number;
+    kitchen_budget?: number;
+    bar_budget?: number;
+    remaining_budget?: number;
+    food_cost_deducted?: number;
+    status?: "draft" | "locked";
+    locked_by?: string;
+    last_saved_at?: string; // if your backend returns this
+    updated_at?: string;    // or this
+  };
+
+  const [weeklyBudgetRecord, setWeeklyBudgetRecord] =
+    useState<WeeklyBudgetRecord | null>(null);
+
+  const [weeklyBudgetLoading, setWeeklyBudgetLoading] = useState(false);
+  const [weeklyBudgetError, setWeeklyBudgetError] = useState<string | null>(null);
+
+  // ----------------------------------------------
   // COMPUTED FIELD HELPERS
   // ----------------------------------------------
   const variance = useMemo(() => {
@@ -223,31 +247,52 @@ const CashierForm: React.FC = () => {
   }, [form, selectedDate]);
 
   // ----------------------------------------------
-  // BUDGET CONTEXT (V1 — frontend only)
+  // WEEK HELPERS (for weekly budget lookup)
   // ----------------------------------------------
-  const weeklyBudget = 70000; // TODO: replace with backend value later
+  function getMondayISO(dateStr: string): string {
+    // dateStr expected: "YYYY-MM-DD"
+    const d = new Date(dateStr + "T00:00:00");
+    const day = d.getDay(); // 0=Sun, 1=Mon...
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    return d.toISOString().split("T")[0];
+  }
+
+  // ----------------------------------------------
+  // BUDGET CONTEXT (from backend)
+  // ----------------------------------------------
   const daysInWeek = 7;
 
+  const weeklyBudget = useMemo(() => {
+    if (!weeklyBudgetRecord) return 0;
+
+    // Prefer explicit weekly_budget, else sum kitchen+bar
+    const wb =
+      Number(weeklyBudgetRecord.weekly_budget) ||
+      (Number(weeklyBudgetRecord.kitchen_budget) || 0) +
+        (Number(weeklyBudgetRecord.bar_budget) || 0);
+
+    return isNaN(wb) ? 0 : wb;
+  }, [weeklyBudgetRecord]);
+
+  const baseRemainingThisWeek = useMemo(() => {
+    if (!weeklyBudgetRecord) return weeklyBudget;
+    const rb = Number(weeklyBudgetRecord.remaining_budget);
+    return isNaN(rb) ? weeklyBudget : rb;
+  }, [weeklyBudgetRecord, weeklyBudget]);
+
   const dailyEnvelope = useMemo(() => {
-    return weeklyBudget / daysInWeek;
+    return weeklyBudget > 0 ? weeklyBudget / daysInWeek : 0;
   }, [weeklyBudget, daysInWeek]);
 
+  // Remaining after planned spend (tomorrow’s planned F&B)
   const remainingWeeklyBudget = useMemo(() => {
-    return weeklyBudget - foodAndBeverageEstimatedSpend;
-  }, [weeklyBudget, foodAndBeverageEstimatedSpend]);
+    return baseRemainingThisWeek - foodAndBeverageEstimatedSpend;
+  }, [baseRemainingThisWeek, foodAndBeverageEstimatedSpend]);
 
   const aboveEnvelope = useMemo(() => {
     return Math.max(0, foodAndBeverageEstimatedSpend - dailyEnvelope);
   }, [foodAndBeverageEstimatedSpend, dailyEnvelope]);
-
-  const cashForDeposit = Math.max(0, rawCashForDeposit);
-  const transferNeeded =
-    rawCashForDeposit < 0 ? Math.abs(rawCashForDeposit) : 0;
-
-  const peso = (n: number | string): string =>
-    isNaN(Number(n)) || n === ""
-      ? "₱0"
-      : `₱${Number(n).toLocaleString("en-PH")}`;
 
   // ----------------------------------------------
   // HANDLE CHANGE
@@ -384,6 +429,53 @@ const CashierForm: React.FC = () => {
       fetchExisting(true);
     }
   }, [selectedDate]);
+
+  // ----------------------------------------------
+  // FETCH WEEKLY BUDGET (when date/store changes)
+  // ----------------------------------------------
+  useEffect(() => {
+    if (!storeId || !selectedDate) return;
+
+    const weekStart = getMondayISO(selectedDate);
+
+    async function fetchWeeklyBudget() {
+      setWeeklyBudgetLoading(true);
+      setWeeklyBudgetError(null);
+
+      try {
+        const res = await fetch(
+          `${BACKEND_URL}/weekly-budgets?store_id=${encodeURIComponent(
+            storeId
+          )}&business_date=${encodeURIComponent(weekStart)}`
+        );
+
+        if (!res.ok) {
+          // If no budget exists, your API might return 200 with empty payload,
+          // or 404/400 depending on implementation.
+          setWeeklyBudgetRecord(null);
+          return;
+        }
+
+        const data = await res.json();
+
+        // Normalize "no record" cases
+        if (!data || !data.week_start) {
+          setWeeklyBudgetRecord(null);
+          return;
+        }
+
+        setWeeklyBudgetRecord(data);
+      } catch (err: any) {
+        console.error("❌ Failed to fetch weekly budget:", err);
+        setWeeklyBudgetRecord(null);
+        setWeeklyBudgetError("Unable to load weekly budget context.");
+      } finally {
+        setWeeklyBudgetLoading(false);
+      }
+    }
+
+    fetchWeeklyBudget();
+  }, [storeId, selectedDate]);
 
   // ----------------------------------------------
   // SAVE RECORD
@@ -641,41 +733,51 @@ const CashierForm: React.FC = () => {
           {selectedDate && !loading && (
             <div className="pb-28 space-y-6">
               
-              {/* BUDGET CONTEXT — V1 (Read-Only) */}
+              {/* BUDGET CONTEXT — Read-Only */}
               <section className="rounded-2xl bg-blue-50 border border-blue-100 p-4 md:p-5 mb-6">
                 <h3 className="text-sm font-semibold text-blue-900 text-center uppercase mb-3">
                   Weekly Budget Context
                 </h3>
 
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  {/* Weekly Budget */}
-                  <div className="text-center">
-                    <div className="text-xs text-blue-700">Weekly Budget</div>
-                    <div className="font-semibold text-blue-900">
-                      {peso(weeklyBudget)}
+                {weeklyBudgetLoading ? (
+                  <p className="text-center text-sm text-blue-700">Loading weekly budget…</p>
+                ) : !weeklyBudgetRecord ? (
+                  <div className="text-center text-sm text-blue-800">
+                    <div className="font-medium">No weekly budget found for this week.</div>
+                    <div className="text-xs text-blue-700 mt-1">
+                      Please ask Admin to set a weekly budget for this store/week.
                     </div>
                   </div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="text-center">
+                        <div className="text-xs text-blue-700">Weekly Budget</div>
+                        <div className="font-semibold text-blue-900">{peso(weeklyBudget)}</div>
+                      </div>
 
-                  {/* Remaining Weekly Budget */}
-                  <div className="text-center">
-                    <div className="text-xs text-blue-700">Remaining This Week</div>
-                    <div className="font-semibold text-blue-900">
-                      {peso(remainingWeeklyBudget)}
+                      <div className="text-center">
+                        <div className="text-xs text-blue-700">Remaining This Week</div>
+                        <div className="font-semibold text-blue-900">
+                          {peso(remainingWeeklyBudget)}
+                        </div>
+                      </div>
+
+                      <div className="text-center">
+                        <div className="text-xs text-blue-700">Daily Envelope (Guide)</div>
+                        <div className="font-semibold text-blue-900">{peso(dailyEnvelope)}</div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Daily Envelope */}
-                  <div className="text-center">
-                    <div className="text-xs text-blue-700">Daily Envelope (Guide)</div>
-                    <div className="font-semibold text-blue-900">
-                      {peso(dailyEnvelope)}
-                    </div>
-                  </div>
-                </div>
+                    <p className="mt-3 text-xs text-blue-700 text-center">
+                      Weekly budget is reduced based on planned daily spend. Daily envelope is a pacing guide, not free spend.
+                    </p>
 
-                <p className="mt-3 text-xs text-blue-700 text-center">
-                  Weekly budget is reduced based on planned daily spend. Daily envelope is a pacing guide, not free spend.
-                </p>
+                    {weeklyBudgetError && (
+                      <p className="mt-2 text-xs text-red-600 text-center">{weeklyBudgetError}</p>
+                    )}
+                  </>
+                )}
               </section>
               
               {/* SALES */}
