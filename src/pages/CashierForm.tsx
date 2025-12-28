@@ -259,17 +259,17 @@ const CashierForm: React.FC = () => {
   // ----------------------------------------------
   // WEEK HELPERS (for weekly budget lookup)
   // ----------------------------------------------
-  function getMondayISO(dateStr?: string | null): string | null {
-    if (!dateStr) return null;
+  function getMondayISO(dateStr: string): string {
+    // dateStr = "YYYY-MM-DD"
+    const [y, m, d] = dateStr.split("-").map(Number);
+    const date = new Date(Date.UTC(y, m - 1, d));
 
-    const d = new Date(dateStr + "T00:00:00");
-    if (isNaN(d.getTime())) return null;
+    const day = date.getUTCDay(); // 0=Sun, 1=Mon
+    const diff = date.getUTCDate() - day + (day === 0 ? -6 : 1);
 
-    const day = d.getDay(); // 0=Sun
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff);
+    date.setUTCDate(diff);
 
-    return d.toISOString().split("T")[0];
+    return date.toISOString().slice(0, 10);
   }
 
   // ----------------------------------------------
