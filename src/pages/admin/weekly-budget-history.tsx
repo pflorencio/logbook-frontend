@@ -19,12 +19,12 @@ interface WeeklyBudgetHistoryRow {
   week_end: string;
 
   original_weekly_budget: number;
-  weekly_budget_amount: number;
+  weekly_budget_amount: number; // kept for compatibility
+  final_weekly_budget: number;  // ✅ correct field
   kitchen_budget: number;
   bar_budget: number;
   food_cost_deducted: number;
 
-  status: string;
   locked_at?: string;
 }
 
@@ -111,8 +111,8 @@ function WeeklyBudgetHistoryPage() {
     rows.map((r) => r.food_cost_deducted)
   );
 
-  const avgWeeklyBudget = avg(
-    rows.map((r) => r.weekly_budget_amount)
+  const avgFinalBudget = avg(
+    rows.map((r) => r.final_weekly_budget)
   );
 
   /* ---------------------------------------------
@@ -195,6 +195,7 @@ function WeeklyBudgetHistoryPage() {
               <th className="border px-3 py-2 text-left">Status</th>
             </tr>
           </thead>
+
           <tbody className="text-sm">
             {rows.length === 0 && !loading && (
               <tr>
@@ -204,33 +205,43 @@ function WeeklyBudgetHistoryPage() {
               </tr>
             )}
 
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-gray-50">
-                <td className="border px-3 py-2">
-                  {r.week_start} → {r.week_end}
-                </td>
-                <td className="border px-3 py-2 text-right">
-                  {peso(r.original_weekly_budget)}
-                </td>
-                <td className="border px-3 py-2 text-right font-medium">
-                  {peso(r.weekly_budget_amount)}
-                </td>
-                <td className="border px-3 py-2 text-right">
-                  {peso(r.kitchen_budget)}
-                </td>
-                <td className="border px-3 py-2 text-right">
-                  {peso(r.bar_budget)}
-                </td>
-                <td className="border px-3 py-2 text-right">
-                  {peso(r.food_cost_deducted)}
-                </td>
-                <td className="border px-3 py-2">
-                  <span className="inline-block px-2 py-1 rounded text-xs bg-green-100 text-green-700">
-                    {r.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {rows.map((r) => {
+              const statusLabel = r.locked_at ? "Locked" : "Draft";
+
+              return (
+                <tr key={r.id} className="hover:bg-gray-50">
+                  <td className="border px-3 py-2">
+                    {r.week_start} → {r.week_end}
+                  </td>
+                  <td className="border px-3 py-2 text-right">
+                    {peso(r.original_weekly_budget)}
+                  </td>
+                  <td className="border px-3 py-2 text-right font-medium">
+                    {peso(r.final_weekly_budget)}
+                  </td>
+                  <td className="border px-3 py-2 text-right">
+                    {peso(r.kitchen_budget)}
+                  </td>
+                  <td className="border px-3 py-2 text-right">
+                    {peso(r.bar_budget)}
+                  </td>
+                  <td className="border px-3 py-2 text-right">
+                    {peso(r.food_cost_deducted)}
+                  </td>
+                  <td className="border px-3 py-2">
+                    <span
+                      className={`inline-block px-2 py-1 rounded text-xs ${
+                        r.locked_at
+                          ? "bg-green-100 text-green-700"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {statusLabel}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
 
           <tfoot className="bg-gray-50 border-t text-sm font-semibold">
@@ -238,7 +249,7 @@ function WeeklyBudgetHistoryPage() {
               <td className="border px-3 py-3">Totals / Averages</td>
               <td className="border px-3 py-3"></td>
               <td className="border px-3 py-3 text-right">
-                Avg: {peso(avgWeeklyBudget)}
+                Avg: {peso(avgFinalBudget)}
               </td>
               <td className="border px-3 py-3"></td>
               <td className="border px-3 py-3"></td>
