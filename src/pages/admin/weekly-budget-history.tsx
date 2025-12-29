@@ -20,7 +20,7 @@ interface WeeklyBudgetHistoryRow {
 
   original_weekly_budget: number;
   weekly_budget_amount: number; // kept for compatibility
-  final_weekly_budget: number;  // ✅ correct field
+  final_weekly_budget: number;  // correct field
   kitchen_budget: number;
   bar_budget: number;
   food_cost_deducted: number;
@@ -42,12 +42,33 @@ function WeeklyBudgetHistoryPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ------------------------------
+  // Session / role
+  // ------------------------------
+  const session = JSON.parse(localStorage.getItem("session") || "{}");
+  const userRole = session.role;
+  const allowedStoreIds: string[] = session.store_access || [];
+
   /* ---------------------------------------------
-     Load Stores (aligned with api.ts)
+     Load Stores (role-aware)
   --------------------------------------------- */
   useEffect(() => {
     fetchStores()
-      .then(setStores)
+      .then((data) => {
+        if (userRole === "admin") {
+          setStores(data);
+        } else {
+          const filtered = data.filter((s) =>
+            allowedStoreIds.includes(s.id)
+          );
+          setStores(filtered);
+
+          // Auto-select if only one store
+          if (filtered.length === 1) {
+            setStoreId(filtered[0].id);
+          }
+        }
+      })
       .catch(() => {
         setError("Failed to load stores");
       });

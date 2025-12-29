@@ -38,6 +38,10 @@ export default function WeeklyBudgets() {
 
   const totalBudget = kitchenBudget + barBudget;
 
+  const session = JSON.parse(localStorage.getItem("session") || "{}");
+  const userRole = session.role;
+  const allowedStoreIds: string[] = session.store_access || [];
+
   // ------------------------------
   // Helpers
   // ------------------------------
@@ -77,14 +81,38 @@ export default function WeeklyBudgets() {
     });
   }
 
+  function getSunday(monday: Date) {
+    const d = new Date(monday);
+    d.setDate(d.getDate() + 6);
+    return d;
+  }
+
   // ------------------------------
-  // Load stores
+  // Load stores (role-aware)
   // ------------------------------
   useEffect(() => {
     const fetchStores = async () => {
-      const res = await fetch(`${API_BASE}/stores`);
-      const data = await res.json();
-      setStores(data || []);
+      try {
+        const res = await fetch(`${API_BASE}/stores`);
+        const data: Store[] = await res.json();
+
+        if (userRole === "admin") {
+          setStores(data || []);
+        } else {
+          const filtered = (data || []).filter((s) =>
+            allowedStoreIds.includes(s.id)
+          );
+          setStores(filtered);
+
+          // Auto-select store if manager has only one
+          if (filtered.length === 1) {
+            setStoreId(filtered[0].id);
+          }
+        }
+      } catch (err) {
+        console.error("❌ Failed to load stores:", err);
+        setError("Failed to load stores");
+      }
     };
 
     fetchStores();
@@ -139,9 +167,14 @@ export default function WeeklyBudgets() {
           throw new Error("Failed to load weekly budget");
         }
 
-        const selected = new Date(weekStart);
-        const currentMonday = getMonday(new Date());
-        setIsPastWeek(selected < currentMonday);
+        const selectedMonday = new Date(weekStart);
+        const selectedSunday = getSunday(selectedMonday);
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        setIsPastWeek(selectedSunday < today);
+
       } catch (err: any) {
         setError(err.message || "Error loading budget");
       } finally {
