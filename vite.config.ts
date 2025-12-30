@@ -5,6 +5,7 @@ import path from "path";
 console.log("🔧 VITE CONFIG LOADED");
 
 export default defineConfig({
+  base: "/", // 👈 IMPORTANT
   plugins: [react()],
   resolve: {
     alias: {
