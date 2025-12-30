@@ -2,8 +2,14 @@
 // lib/api.ts — Clean, Organized, Production-Ready API Client
 // -------------------------------------------------------------
 
-export const BACKEND_URL: string =
-  import.meta.env.VITE_API_BASE || "https://restaurant-ops-backend.onrender.com";
+// ✅ Preferred Vite-style env variable
+export const API_BASE: string =
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_API_BASE ||
+  "https://restaurant-ops-backend.onrender.com";
+
+// ✅ Backward-compatible alias (DO NOT REMOVE)
+export const BACKEND_URL: string = API_BASE;
 
 console.log("🟢 Using backend URL:", BACKEND_URL);
 
@@ -231,7 +237,9 @@ export async function checkNeedsUpdate(
 
 export async function fetchNeedsUpdateList(storeId: string) {
   const res = await fetch(
-    `${BACKEND_URL}/closings/needs-update-list?store_id=${encodeURIComponent(storeId)}`
+    `${BACKEND_URL}/closings/needs-update-list?store_id=${encodeURIComponent(
+      storeId
+    )}`
   );
 
   if (!res.ok) throw new Error("Failed to fetch needs-update list");
@@ -274,7 +282,6 @@ export async function fetchPendingClosings() {
 
   return res.json();
 }
-
 
 // -------------------------------------------------------------
 // REPORTING
