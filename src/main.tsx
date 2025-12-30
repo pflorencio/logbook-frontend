@@ -12,6 +12,7 @@ window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredInstallPrompt = event;
   console.log("✅ PWA install prompt captured");
+  window.dispatchEvent(new Event("pwa-install-ready"));
 });
 
 export async function promptPWAInstall() {

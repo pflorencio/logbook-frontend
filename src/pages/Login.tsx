@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchUsers, loginUser } from "@/lib/api";
+import { promptPWAInstall } from "@/main"; // ✅ import your installer
 
 interface User {
   user_id: string;
@@ -13,13 +14,16 @@ interface User {
 }
 
 const Login: React.FC = () => {
-
   const navigate = useNavigate();
 
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
+
+  // ✅ PWA install button state
+  const [canInstall, setCanInstall] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
     localStorage.clear();
@@ -35,6 +39,26 @@ const Login: React.FC = () => {
       }
     }
     load();
+  }, []);
+
+  // ✅ Detect if already installed (standalone mode)
+  useEffect(() => {
+    const standalone =
+      window.matchMedia?.("(display-mode: standalone)")?.matches ||
+      // @ts-expect-error iOS Safari standalone
+      window.navigator?.standalone === true;
+
+    setIsStandalone(!!standalone);
+  }, []);
+
+  // ✅ Listen for install readiness event fired from main.tsx
+  useEffect(() => {
+    const onReady = () => setCanInstall(true);
+    window.addEventListener("pwa-install-ready", onReady);
+
+    // In case the event fired before Login mounted,
+    // you can still rely on Chrome UI; this is best-effort.
+    return () => window.removeEventListener("pwa-install-ready", onReady);
   }, []);
 
   const handleLogin = async () => {
@@ -83,10 +107,19 @@ const Login: React.FC = () => {
     }
   };
 
+  const handleInstall = async () => {
+    try {
+      await promptPWAInstall();
+      // Optional: hide after clicking (even if user cancels)
+      setCanInstall(false);
+    } catch (e) {
+      console.error("❌ PWA install prompt failed:", e);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 text-center">
-
         <h1 className="text-2xl font-semibold mb-2">Staff Login</h1>
         <p className="text-gray-500 mb-6">
           Select your name and enter your 4-digit PIN.
@@ -129,6 +162,15 @@ const Login: React.FC = () => {
           Login
         </button>
 
+        {/* ✅ Permanent install button (only when installable + not already installed) */}
+        {!isStandalone && canInstall && (
+          <button
+            onClick={handleInstall}
+            className="w-full mt-3 border border-blue-600 text-blue-600 hover:bg-blue-50 py-2 rounded-xl text-base font-medium"
+          >
+            Install App
+          </button>
+        )}
       </div>
     </div>
   );
