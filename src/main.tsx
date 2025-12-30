@@ -8,15 +8,19 @@ import "./styles/globals.css";
 ------------------------------------------------------------- */
 
 let deferredInstallPrompt: any = null;
+let installAvailable = false;
 
-// Capture the install prompt
 window.addEventListener("beforeinstallprompt", (event) => {
-  event.preventDefault(); // Prevent Chrome auto-prompt
+  event.preventDefault();
   deferredInstallPrompt = event;
+  installAvailable = true;
   console.log("✅ PWA install prompt captured");
 });
 
-// Optional helper (can be called from UI button later)
+export function isPWAInstallAvailable() {
+  return installAvailable;
+}
+
 export async function promptPWAInstall() {
   if (!deferredInstallPrompt) {
     alert("Install not available yet. Please use Chrome on Android.");
@@ -26,7 +30,9 @@ export async function promptPWAInstall() {
   deferredInstallPrompt.prompt();
   const { outcome } = await deferredInstallPrompt.userChoice;
   console.log("📦 PWA install outcome:", outcome);
+
   deferredInstallPrompt = null;
+  installAvailable = false;
 }
 
 /* -------------------------------------------------------------

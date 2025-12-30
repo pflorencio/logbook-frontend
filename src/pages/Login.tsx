@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchUsers, loginUser } from "@/lib/api";
-import { promptPWAInstall } from "@/main";
+import { promptPWAInstall, isPWAInstallAvailable } from "@/main";
 
 interface User {
   user_id: string;
@@ -27,11 +27,9 @@ const LoginPage: React.FC = () => {
     localStorage.clear();
   }, []);
 
-  // Detect PWA install availability
+  // ✅ Check PWA install availability (from main.tsx)
   useEffect(() => {
-    const handler = () => setCanInstall(true);
-    window.addEventListener("beforeinstallprompt", handler as any);
-    return () => window.removeEventListener("beforeinstallprompt", handler as any);
+    setCanInstall(isPWAInstallAvailable());
   }, []);
 
   // Load ACTIVE users
