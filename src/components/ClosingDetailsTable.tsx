@@ -1,7 +1,13 @@
 // src/components/ClosingDetailsTable.tsx
 import React from "react";
 
-export default function ClosingDetailsTable({ record }: { record: any }) {
+export default function ClosingDetailsTable({
+  record,
+  summary,
+}: {
+  record: any;
+  summary: any;
+}) {
   if (!record || !record.fields) return null;
 
   const f = record.fields;
@@ -51,8 +57,11 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
   // -------------------------------
   // Conditions
   // -------------------------------
+  // IMPORTANT:
+  // Variance must come from backend summary.
+  // Airtable formula returns "—" when empty.
   const hasVariance =
-    typeof f["Variance"] === "number" && f["Variance"] !== 0;
+    typeof summary?.variance === "number" && summary.variance !== 0;
 
   const hasAutoFlag =
     f["Verification Flag"] &&
@@ -115,14 +124,14 @@ export default function ClosingDetailsTable({ record }: { record: any }) {
 
           {rowWithAlert(
             "Variance (Cash vs Actual)",
-            peso(f["Variance"]),
+            peso(summary?.variance),
             hasVariance,
             "Variance"
           )}
 
           {row("Cash Float", peso(f["Cash Float"]))}
-          {row("Cash for Deposit", peso(f["Cash for Deposit"]))}
-          {row("Transfer Needed", peso(f["Transfer Needed"]))}
+          {row("Cash for Deposit", peso(summary?.cash_for_deposit))}
+          {row("Transfer Needed", peso(summary?.transfer_needed))}
         </div>
       </section>
 
