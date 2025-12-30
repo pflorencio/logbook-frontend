@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchUsers, loginUser } from "@/lib/api";
-import { promptPWAInstall, isPWAInstallAvailable } from "@/main";
+import { promptPWAInstall } from "@/main";
 
 interface User {
   user_id: string;
@@ -20,7 +20,6 @@ const LoginPage: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
-  const [canInstall, setCanInstall] = useState(false); // ✅ FIXED
 
   // Reset session on load
   useEffect(() => {
@@ -28,11 +27,6 @@ const LoginPage: React.FC = () => {
     setTimeout(() => {
       localStorage.clear();
     }, 1000);
-  }, []);
-
-  // ✅ Check PWA install availability (from main.tsx)
-  useEffect(() => {
-    setCanInstall(isPWAInstallAvailable());
   }, []);
 
   // Load ACTIVE users
@@ -143,13 +137,13 @@ const LoginPage: React.FC = () => {
         </button>
 
         {/* INSTALL APP */}
-        {canInstall && (
-          <button
-            onClick={promptPWAInstall}
-            className="w-full mt-3 border border-blue-600 text-blue-600 py-2 rounded-xl text-sm font-medium hover:bg-blue-50"
-          >
-            Install App
-          </button>
+        <button
+          onClick={promptPWAInstall}
+          className="w-full mt-3 border border-blue-600 text-blue-600 py-2 rounded-xl text-sm font-medium hover:bg-blue-50"
+        >
+          Install App
+        </button>
+
         )}
       </div>
     </div>
