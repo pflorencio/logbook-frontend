@@ -144,6 +144,17 @@ const LoginPage: React.FC = () => {
           Install App
         </button>
 
+        <div className="mt-3 text-sm text-red-600 font-bold">
+          DEBUG: Install button test
+        </div>
+
+        <button
+          className="w-full mt-2 border border-red-600 text-red-600 py-2 rounded-xl"
+        >
+          DEBUG INSTALL BUTTON
+        </button>
+
+
         )}
       </div>
     </div>
