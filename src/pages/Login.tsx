@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchUsers, loginUser } from "@/lib/api";
-import { promptPWAInstall } from "@/main";
 
 interface User {
   user_id: string;
@@ -14,6 +13,8 @@ interface User {
 }
 
 const LoginPage: React.FC = () => {
+  console.log("🔥🔥🔥 LOGIN.TSX IS RENDERING 🔥🔥🔥");
+
   const navigate = useNavigate();
 
   const [users, setUsers] = useState<User[]>([]);
@@ -21,14 +22,10 @@ const LoginPage: React.FC = () => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
 
-  // Reset session on load (delayed to avoid side effects)
   useEffect(() => {
-    setTimeout(() => {
-      localStorage.clear();
-    }, 500);
+    localStorage.clear();
   }, []);
 
-  // Load ACTIVE users
   useEffect(() => {
     async function load() {
       try {
@@ -87,17 +84,20 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  console.log("🔥 Login.tsx IS LOADED");
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
       <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 text-center">
+
+        {/* 🚨 HARD DEBUG BANNER */}
+        <div className="mb-4 bg-red-600 text-white font-bold py-2 rounded">
+          DEBUG: LOGIN.TSX IS ACTIVE
+        </div>
+
         <h1 className="text-2xl font-semibold mb-2">Staff Login</h1>
         <p className="text-gray-500 mb-6">
           Select your name and enter your 4-digit PIN.
         </p>
 
-        {/* USER SELECT */}
         <div className="mb-6 text-left">
           <label className="font-medium">Name</label>
           <select
@@ -114,7 +114,6 @@ const LoginPage: React.FC = () => {
           </select>
         </div>
 
-        {/* PIN */}
         <div className="mb-4 text-left">
           <label className="font-medium">PIN</label>
           <input
@@ -129,7 +128,6 @@ const LoginPage: React.FC = () => {
 
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
-        {/* LOGIN */}
         <button
           onClick={handleLogin}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl text-lg font-medium"
@@ -137,26 +135,6 @@ const LoginPage: React.FC = () => {
           Login
         </button>
 
-        {/* ================= DEBUG BLOCK ================= */}
-        <div className="mt-6 p-3 border-2 border-red-600 rounded-xl">
-          <p className="text-red-600 font-bold mb-2">
-            DEBUG: Login.tsx is rendering
-          </p>
-
-          <button
-            className="w-full border border-red-600 text-red-600 py-2 rounded-xl mb-2"
-          >
-            DEBUG INSTALL BUTTON (NO LOGIC)
-          </button>
-
-          <button
-            onClick={promptPWAInstall}
-            className="w-full border border-blue-600 text-blue-600 py-2 rounded-xl"
-          >
-            Install App (Trigger Prompt)
-          </button>
-        </div>
-        {/* ================================================= */}
       </div>
     </div>
   );

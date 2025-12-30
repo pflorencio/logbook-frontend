@@ -9,6 +9,7 @@ run = "npm run preview"
 
 [nix]
 channel = "stable-24_05"
+packages = ["tree"]
 
 # Map external port 80 → internal port 3000
 [[ports]]
