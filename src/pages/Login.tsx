@@ -23,7 +23,6 @@ const LoginPage: React.FC = () => {
 
   // Reset session on load
   useEffect(() => {
-    // Delay clearing session so PWA install eligibility is preserved
     setTimeout(() => {
       localStorage.clear();
     }, 1000);
@@ -90,7 +89,13 @@ const LoginPage: React.FC = () => {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 text-center">
+
+      {/* 🔥 DEBUGGER — MUST ALWAYS BE VISIBLE IF THIS FILE IS RENDERED */}
+      <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 font-bold z-50">
+        🔥 DEBUG: Login.tsx IS RENDERING
+      </div>
+
+      <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 text-center mt-12">
         <h1 className="text-2xl font-semibold mb-2">Staff Login</h1>
         <p className="text-gray-500 mb-6">
           Select your name and enter your 4-digit PIN.
@@ -136,7 +141,7 @@ const LoginPage: React.FC = () => {
           Login
         </button>
 
-        {/* INSTALL APP */}
+        {/* INSTALL APP (always visible for debugging) */}
         <button
           onClick={promptPWAInstall}
           className="w-full mt-3 border border-blue-600 text-blue-600 py-2 rounded-xl text-sm font-medium hover:bg-blue-50"
@@ -144,18 +149,14 @@ const LoginPage: React.FC = () => {
           Install App
         </button>
 
+        {/* EXTRA DEBUG */}
         <div className="mt-3 text-sm text-red-600 font-bold">
           DEBUG: Install button test
         </div>
 
-        <button
-          className="w-full mt-2 border border-red-600 text-red-600 py-2 rounded-xl"
-        >
+        <button className="w-full mt-2 border border-red-600 text-red-600 py-2 rounded-xl">
           DEBUG INSTALL BUTTON
         </button>
-
-
-        )}
       </div>
     </div>
   );
