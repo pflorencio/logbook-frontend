@@ -3,24 +3,40 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./styles/globals.css";
 
-const rootElement = document.getElementById("root");
-if (!rootElement) {
-  throw new Error("❌ Root element #root not found in index.html");
+/* -------------------------------------------------------------
+   PWA v1 — Manual Install Prompt Handling
+------------------------------------------------------------- */
+
+let deferredInstallPrompt: any = null;
+
+// Capture the install prompt
+window.addEventListener("beforeinstallprompt", (event) => {
+  event.preventDefault(); // Prevent Chrome auto-prompt
+  deferredInstallPrompt = event;
+  console.log("✅ PWA install prompt captured");
+});
+
+// Optional helper (can be called from UI button later)
+export async function promptPWAInstall() {
+  if (!deferredInstallPrompt) {
+    alert("Install not available yet. Please use Chrome on Android.");
+    return;
+  }
+
+  deferredInstallPrompt.prompt();
+  const { outcome } = await deferredInstallPrompt.userChoice;
+  console.log("📦 PWA install outcome:", outcome);
+  deferredInstallPrompt = null;
 }
 
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+/* -------------------------------------------------------------
+   PWA v1 — Service Worker Registration (Cashier)
+------------------------------------------------------------- */
 
-// -------------------------------------------------------------
-// PWA v1 — Service Worker Registration (Cashier)
-// -------------------------------------------------------------
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
-      .register("/service-worker.js", { scope: "/" })
+      .register("/service-worker.js")
       .then((registration) => {
         console.log(
           "🟢 Cashier PWA Service Worker registered with scope:",
@@ -35,3 +51,18 @@ if ("serviceWorker" in navigator) {
       });
   });
 }
+
+/* -------------------------------------------------------------
+   React App Bootstrap
+------------------------------------------------------------- */
+
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("❌ Root element #root not found in index.html");
+}
+
+ReactDOM.createRoot(rootElement).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
