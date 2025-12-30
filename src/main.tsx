@@ -6,33 +6,28 @@ import "./styles/globals.css";
 /* -------------------------------------------------------------
    PWA v1 — Manual Install Prompt Handling
 ------------------------------------------------------------- */
-
 let deferredInstallPrompt: any = null;
-let installAvailable = false;
 
 window.addEventListener("beforeinstallprompt", (event) => {
   event.preventDefault();
   deferredInstallPrompt = event;
-  installAvailable = true;
   console.log("✅ PWA install prompt captured");
 });
 
-export function isPWAInstallAvailable() {
-  return installAvailable;
-}
-
 export async function promptPWAInstall() {
   if (!deferredInstallPrompt) {
-    alert("Install not available yet. Please use Chrome on Android.");
+    alert(
+      "To install:\n\n" +
+      "• Android: Chrome menu (⋮) → Install app\n" +
+      "• iPhone: Share → Add to Home Screen\n\n" +
+      "If already installed, you can open it from your home screen."
+    );
     return;
   }
 
   deferredInstallPrompt.prompt();
-  const { outcome } = await deferredInstallPrompt.userChoice;
-  console.log("📦 PWA install outcome:", outcome);
-
+  await deferredInstallPrompt.userChoice;
   deferredInstallPrompt = null;
-  installAvailable = false;
 }
 
 /* -------------------------------------------------------------

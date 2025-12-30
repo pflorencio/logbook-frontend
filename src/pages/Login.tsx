@@ -20,7 +20,7 @@ const LoginPage: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
-  const [canInstall, setCanInstall] = useState(false);
+  const [canInstall, setCanInstall] = useState(false); // ✅ FIXED
 
   // Reset session on load
   useEffect(() => {
