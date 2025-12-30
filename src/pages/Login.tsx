@@ -24,7 +24,10 @@ const LoginPage: React.FC = () => {
 
   // Reset session on load
   useEffect(() => {
-    localStorage.clear();
+    // Delay clearing session so PWA install eligibility is preserved
+    setTimeout(() => {
+      localStorage.clear();
+    }, 1000);
   }, []);
 
   // ✅ Check PWA install availability (from main.tsx)
