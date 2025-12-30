@@ -10,7 +10,7 @@ import {
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Cashier Pages
-import Login from "./pages/Login";
+import LoginPage from "./pages/LoginPage";
 import CashierForm from "./pages/CashierForm";
 import SettingsPage from "./pages/settings";
 import HomePage from "./pages/index";
@@ -65,7 +65,7 @@ export default function App() {
       <div className="min-h-screen flex flex-col">
         <Routes>
           {/* ---------- PUBLIC ROUTES ---------- */}
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/admin-login" element={<AdminLogin />} />
 
           {/* ---------- DEFAULT ROUTE ---------- */}
