@@ -1,16 +1,20 @@
 // src/pages/admin/reports.tsx
 import React, { useEffect, useState } from "react";
 import AdminLayout from "@/components/AdminLayout";
-import { fetchClosings } from "@/lib/api";
 import ClosingDetailsTable from "@/components/ClosingDetailsTable";
 import StatusBadge from "@/components/StatusBadge";
 import VerifyControls from "@/components/VerifyControls";
+import { BACKEND_URL } from "@/lib/api";
 
 const AdminReports: React.FC = () => {
   const [store, setStore] = useState("");
   const [businessDate, setBusinessDate] = useState("");
   const [loading, setLoading] = useState(false);
-  const [closing, setClosing] = useState<any>(null);
+
+  // Report payload
+  const [record, setRecord] = useState<any>(null);
+  const [summary, setSummary] = useState<any>(null);
+
   const [error, setError] = useState<string | null>(null);
 
   const sessionRaw =
@@ -34,6 +38,7 @@ const AdminReports: React.FC = () => {
     if (dateFromQuery && dateFromQuery !== "undefined") {
       setBusinessDate(dateFromQuery);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -50,16 +55,31 @@ const AdminReports: React.FC = () => {
     setError(null);
 
     try {
-      const res = await fetchClosings(businessDate, store);
+      // Use dashboard endpoint so we get computed summary + raw_fields
+      const url = `${BACKEND_URL}/dashboard/closings?business_date=${encodeURIComponent(
+        businessDate
+      )}&store_id=${encodeURIComponent(store)}`;
 
-      if (!res.records || res.records.length === 0) {
-        setClosing(null);
+      const res = await fetch(url);
+      if (!res.ok) {
+        throw new Error(`Failed to load report: ${res.status}`);
+      }
+
+      const data = await res.json();
+
+      if (data.status !== "found") {
+        setRecord(null);
+        setSummary(null);
         setError("No closing submitted yet for this date.");
       } else {
-        setClosing(res.records[0]);
+        // Normalize into what our components expect
+        setRecord({ id: data.record_id, fields: data.raw_fields });
+        setSummary(data.summary || null);
       }
     } catch (err) {
       console.error(err);
+      setRecord(null);
+      setSummary(null);
       setError("Failed to load report.");
     }
 
@@ -69,12 +89,12 @@ const AdminReports: React.FC = () => {
   // -----------------------------
   // Status interpretation
   // -----------------------------
-  const status = closing?.fields?.["Verified Status"];
+  const status = record?.fields?.["Verified Status"];
 
   let statusMessage = "";
   let statusTone: "info" | "success" | "warning" | "danger" = "info";
 
-  if (!closing) {
+  if (!record) {
     statusMessage = "Awaiting cashier submission.";
     statusTone = "warning";
   } else if (status === "Verified") {
@@ -152,13 +172,13 @@ const AdminReports: React.FC = () => {
           </div>
         )}
 
-        {!error && closing && (
+        {!error && record && (
           <>
-            <ClosingDetailsTable record={closing} />
+            <ClosingDetailsTable record={record} summary={summary} />
 
             <VerifyControls
-              record={closing}
-              onUpdate={(updatedRecord) => setClosing(updatedRecord)}
+              record={record}
+              onUpdate={(updatedRecord) => setRecord(updatedRecord)}
             />
           </>
         )}

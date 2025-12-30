@@ -6,7 +6,7 @@ export default function ClosingDetailsTable({
   summary,
 }: {
   record: any;
-  summary: any;
+  summary?: any;
 }) {
   if (!record || !record.fields) return null;
 
@@ -44,24 +44,43 @@ export default function ClosingDetailsTable({
           </span>
         )}
       </span>
-      <span
-        className={`font-medium ${
-          showAlert ? "text-red-700" : ""
-        }`}
-      >
+      <span className={`font-medium ${showAlert ? "text-red-700" : ""}`}>
         {value}
       </span>
     </div>
   );
 
   // -------------------------------
+  // Value alignment (single source-of-truth)
+  // -------------------------------
+  const varianceValue =
+    typeof summary?.variance === "number"
+      ? summary.variance
+      : typeof f["Variance (Cash vs Actual)"] === "number"
+      ? f["Variance (Cash vs Actual)"]
+      : typeof f["Variance"] === "number"
+      ? f["Variance"]
+      : null;
+
+  const cashForDepositValue =
+    typeof summary?.cash_for_deposit === "number"
+      ? summary.cash_for_deposit
+      : typeof f["Cash for Deposit"] === "number"
+      ? f["Cash for Deposit"]
+      : null;
+
+  const transferNeededValue =
+    typeof summary?.transfer_needed === "number"
+      ? summary.transfer_needed
+      : typeof f["Transfer Needed"] === "number"
+      ? f["Transfer Needed"]
+      : null;
+
+  // -------------------------------
   // Conditions
   // -------------------------------
-  // IMPORTANT:
-  // Variance must come from backend summary.
-  // Airtable formula returns "—" when empty.
   const hasVariance =
-    typeof summary?.variance === "number" && summary.variance !== 0;
+    typeof varianceValue === "number" && varianceValue !== 0;
 
   const hasAutoFlag =
     f["Verification Flag"] &&
@@ -69,7 +88,6 @@ export default function ClosingDetailsTable({
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-6 space-y-8">
-
       {/* ---------- STATUS ---------- */}
       <div>
         <span className="text-sm font-semibold text-gray-700">Status:</span>
@@ -86,9 +104,7 @@ export default function ClosingDetailsTable({
 
       {/* ---------- SALES / PAYMENTS ---------- */}
       <section>
-        <h3 className="font-semibold text-gray-800 mb-3">
-          Sales & Payments
-        </h3>
+        <h3 className="font-semibold text-gray-800 mb-3">Sales & Payments</h3>
         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
           {row("Total Sales", peso(f["Total Sales"]))}
           {row("Net Sales", peso(f["Net Sales"]))}
@@ -116,30 +132,26 @@ export default function ClosingDetailsTable({
 
       {/* ---------- CASH SUMMARY ---------- */}
       <section>
-        <h3 className="font-semibold text-gray-800 mb-3">
-          Cash Summary
-        </h3>
+        <h3 className="font-semibold text-gray-800 mb-3">Cash Summary</h3>
         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
           {row("Actual Cash Counted", peso(f["Actual Cash Counted"]))}
 
           {rowWithAlert(
             "Variance (Cash vs Actual)",
-            peso(summary?.variance),
+            peso(varianceValue),
             hasVariance,
             "Variance"
           )}
 
           {row("Cash Float", peso(f["Cash Float"]))}
-          {row("Cash for Deposit", peso(summary?.cash_for_deposit))}
-          {row("Transfer Needed", peso(summary?.transfer_needed))}
+          {row("Cash for Deposit", peso(cashForDepositValue))}
+          {row("Transfer Needed", peso(transferNeededValue))}
         </div>
       </section>
 
       {/* ---------- META / SUBMISSION ---------- */}
       <section>
-        <h3 className="font-semibold text-gray-800 mb-3">
-          Submission Details
-        </h3>
+        <h3 className="font-semibold text-gray-800 mb-3">Submission Details</h3>
         <div className="bg-gray-50 rounded-lg p-4 space-y-2">
           {row("Submitted By", f["Submitted By"])}
           {row("Submission Time", f["Submission Time"])}
