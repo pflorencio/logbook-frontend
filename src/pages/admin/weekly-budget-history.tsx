@@ -47,7 +47,8 @@ function WeeklyBudgetHistoryPage() {
   // ------------------------------
   const session = JSON.parse(localStorage.getItem("session") || "{}");
   const userRole = session.role;
-  const allowedStoreIds: string[] = session.store_access || [];
+  const allowedStoreIds =
+    session.storeAccess?.map((s: any) => s.id) || [];
 
   /* ---------------------------------------------
      Load Stores (role-aware)
