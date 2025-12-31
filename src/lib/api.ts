@@ -208,14 +208,28 @@ export async function unlockRecord(recordId: string, pin: string) {
 }
 
 export async function verifyRecord(
-  record_id: string,
+  recordId: string,
   status: string,
-  verified_by: string,
-  notes?: string
+  verifiedBy: string,
+  extra?: {
+    card_tips?: number;
+    returned_change?: number;
+    deposit_discrepancy?: number;
+    notes?: string;
+  }
 ) {
-  return apiRequest(`${BACKEND_URL}/verify`, {
+  return fetch(`${BACKEND_URL}/verify`, {
     method: "POST",
-    body: JSON.stringify({ record_id, status, verified_by, notes }),
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      record_id: recordId,
+      status,
+      verified_by: verifiedBy,
+      ...(extra || {}),
+    }),
+  }).then((res) => {
+    if (!res.ok) throw new Error("Verify failed");
+    return res.json();
   });
 }
 
