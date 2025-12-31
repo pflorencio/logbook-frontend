@@ -34,32 +34,36 @@ export default function VerifyClosing() {
       const res = await fetch(`${BACKEND_URL}/closings/${recordId}`);
       const data = await res.json();
 
-      if (!data?.fields) {
+      const resolvedFields =
+        data?.fields || data?.closing?.fields || data?.record?.fields;
+
+      if (!resolvedFields) {
         toast.error("Record not found.");
         return;
       }
 
-      setFields(data.fields);
+      setFields(resolvedFields);
+
       setEditable({
-        "Actual Cash Counted": data.fields["Actual Cash Counted"],
-        "Kitchen Budget": data.fields["Kitchen Budget"],
-        "Bar Budget": data.fields["Bar Budget"],
-        "Non Food Budget": data.fields["Non Food Budget"],
-        "Staff Meal Budget": data.fields["Staff Meal Budget"],
-        "Marketing Expenses": data.fields["Marketing Expenses"],
-        Notes: data.fields["Notes"] || "",
+        "Actual Cash Counted": resolvedFields["Actual Cash Counted"],
+        "Kitchen Budget": resolvedFields["Kitchen Budget"],
+        "Bar Budget": resolvedFields["Bar Budget"],
+        "Non Food Budget": resolvedFields["Non Food Budget"],
+        "Staff Meal Budget": resolvedFields["Staff Meal Budget"],
+        "Marketing Expenses": resolvedFields["Marketing Expenses"],
+        Notes: resolvedFields["Notes"] || "",
       });
 
       // ✅ Prefill admin fields from Airtable (if present)
-      setCardTips(data.fields["Card Tips"] ?? "");
-      setReturnedChange(data.fields["Returned Change"] ?? "");
-      setDepositDiscrepancy(data.fields["Deposit Discrepancy"] ?? "");
+      setCardTips(resolvedFields["Card Tips"] ?? "");
+      setReturnedChange(resolvedFields["Returned Change"] ?? "");
+      setDepositDiscrepancy(resolvedFields["Deposit Discrepancy"] ?? "");
 
-      const bd = data.fields.Date;
-      const storeId = data.fields.Store?.[0];
+      cconst bd = resolvedFields.Date;
+      const storeId = resolvedFields.Store?.[0];
 
       setBusinessDate(bd);
-      setStoreName(data.fields["Store Name"] || data.fields.Store);
+      setStoreName(resolvedFields["Store Name"] || resolvedFields.Store);
 
       if (bd && storeId) {
         const summaryRes = await fetch(
