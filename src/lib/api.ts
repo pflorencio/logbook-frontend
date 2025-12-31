@@ -269,13 +269,15 @@ export async function verifyClosing(payload: {
   status: string;
   verified_by: string;
   notes?: string;
+  card_tips?: number;
+  returned_change?: number;
+  deposit_discrepancy?: number;
 }) {
-  return verifyRecord(
-    payload.record_id,
-    payload.status,
-    payload.verified_by,
-    payload.notes
-  );
+  return fetch(`${BACKEND_URL}/verify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
 }
 
 // -------------------------------------------------------------

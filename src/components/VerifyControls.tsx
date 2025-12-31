@@ -46,10 +46,11 @@ export default function VerifyControls({
         verified_by: verifiedBy,
         notes,
 
-        // ✅ NEW: deposit fields (safe even if undefined)
-        card_tips: record.fields["Card Tips"] ?? null,
-        returned_change: record.fields["Returned Change"] ?? null,
-        deposit_discrepancy: record.fields["Deposit Discrepancy"] ?? null,
+        // ✅ Admin-entered deposit adjustments
+        card_tips: cardTips === "" ? null : Number(cardTips),
+        returned_change: returnedChange === "" ? null : Number(returnedChange),
+        deposit_discrepancy:
+          depositDiscrepancy === "" ? null : Number(depositDiscrepancy),
       };
 
       const res = await verifyClosing(payload);
