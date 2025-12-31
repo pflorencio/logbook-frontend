@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchUsers, loginUser } from "@/lib/api";
-import { promptPWAInstall, isPWAInstalled } from "@/main";
+import { promptPWAInstall } from "@/main";
 
 interface User {
   user_id: string;
@@ -20,17 +20,12 @@ const Login: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState("");
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
-
-  // ✅ PWA install state
-  const [canInstall, setCanInstall] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
-  // Clear any stale session on login load
   useEffect(() => {
     localStorage.clear();
   }, []);
 
-  // Load active users
   useEffect(() => {
     async function load() {
       try {
@@ -43,24 +38,14 @@ const Login: React.FC = () => {
     load();
   }, []);
 
-  // Detect standalone / installed mode
+  // Detect if app is already installed
   useEffect(() => {
     const standalone =
-      window.matchMedia?.("(display-mode: standalone)")?.matches ||
-      // @ts-expect-error iOS Safari standalone
-      window.navigator?.standalone === true;
+      window.matchMedia("(display-mode: standalone)").matches ||
+      // @ts-expect-error iOS Safari
+      window.navigator.standalone === true;
 
     setIsStandalone(!!standalone);
-  }, []);
-
-  // Listen for install readiness event from main.tsx
-  useEffect(() => {
-    const onReady = () => setCanInstall(true);
-    window.addEventListener("pwa-install-ready", onReady);
-
-    return () => {
-      window.removeEventListener("pwa-install-ready", onReady);
-    };
   }, []);
 
   const handleLogin = async () => {
@@ -110,13 +95,7 @@ const Login: React.FC = () => {
   };
 
   const handleInstall = async () => {
-    try {
-      await promptPWAInstall();
-      // Hide button after interaction (even if dismissed)
-      setCanInstall(false);
-    } catch (err) {
-      console.error("❌ PWA install prompt failed:", err);
-    }
+    await promptPWAInstall();
   };
 
   return (
@@ -164,8 +143,8 @@ const Login: React.FC = () => {
           Login
         </button>
 
-        {/* ✅ Permanent PWA install CTA */}
-        {!isStandalone && canInstall && (
+        {/* ✅ ALWAYS SHOW INSTALL BUTTON */}
+        {!isStandalone && (
           <button
             onClick={handleInstall}
             className="w-full mt-3 border border-blue-600 text-blue-600 hover:bg-blue-50 py-2 rounded-xl text-base font-medium"
