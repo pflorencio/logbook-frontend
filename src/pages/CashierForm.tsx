@@ -967,10 +967,19 @@ const CashierForm: React.FC = () => {
                       {formatPeso(variance)}
                     </div>
 
-                    <div className="text-gray-600">Cash for Deposit:</div>
-                    <div className="text-right font-medium">
-                      {formatPeso(rawCashForDeposit)}
-                    </div>
+                    {!isLocked && (
+                      <>
+                        <div className="text-gray-600">
+                          Estimated Cash for Deposit
+                          <span className="block text-[11px] text-gray-400">
+                            Before admin adjustments (tips, returned change)
+                          </span>
+                        </div>
+                        <div className="text-right font-medium">
+                          {formatPeso(rawCashForDeposit)}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </section>
