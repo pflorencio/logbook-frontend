@@ -21,9 +21,6 @@ export default function VerifyControls({
   const [returnedChange, setReturnedChange] = useState<number | "">(
     record.fields["Returned Change"] ?? ""
   );
-  const [depositDiscrepancy, setDepositDiscrepancy] = useState<number | "">(
-    record.fields["Deposit Discrepancy"] ?? ""
-  );
 
   const [loading, setLoading] = useState(false);
 
@@ -46,11 +43,8 @@ export default function VerifyControls({
         verified_by: verifiedBy,
         notes,
 
-        // ✅ Admin-entered deposit adjustments
         card_tips: cardTips === "" ? null : Number(cardTips),
         returned_change: returnedChange === "" ? null : Number(returnedChange),
-        deposit_discrepancy:
-          depositDiscrepancy === "" ? null : Number(depositDiscrepancy),
       };
 
       const res = await verifyClosing(payload);
@@ -118,23 +112,6 @@ export default function VerifyControls({
             value={returnedChange}
             onChange={(e) =>
               setReturnedChange(
-                e.target.value === "" ? "" : Number(e.target.value)
-              )
-            }
-          />
-        </div>
-
-        <div className="flex flex-col">
-          <label className="text-sm text-gray-600">
-            Deposit Discrepancy
-          </label>
-          <input
-            type="number"
-            step="0.01"
-            className="border rounded px-3 py-2"
-            value={depositDiscrepancy}
-            onChange={(e) =>
-              setDepositDiscrepancy(
                 e.target.value === "" ? "" : Number(e.target.value)
               )
             }

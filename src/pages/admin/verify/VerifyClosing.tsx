@@ -18,7 +18,6 @@ export default function VerifyClosing() {
   // ✅ NEW: Admin-entered deposit adjustments
   const [cardTips, setCardTips] = useState<number | "">("");
   const [returnedChange, setReturnedChange] = useState<number | "">("");
-  const [depositDiscrepancy, setDepositDiscrepancy] = useState<number | "">("");
 
   // Local helper
   const peso = (n: number | string | null | undefined) =>
@@ -57,7 +56,6 @@ export default function VerifyClosing() {
       // ✅ Prefill admin fields from Airtable (if present)
       setCardTips(resolvedFields["Card Tips"] ?? "");
       setReturnedChange(resolvedFields["Returned Change"] ?? "");
-      setDepositDiscrepancy(resolvedFields["Deposit Discrepancy"] ?? "");
 
       const bd = resolvedFields.Date;
       const storeId = resolvedFields.Store?.[0];
@@ -136,8 +134,6 @@ export default function VerifyClosing() {
         card_tips: cardTips === "" ? undefined : Number(cardTips),
         returned_change:
           returnedChange === "" ? undefined : Number(returnedChange),
-        deposit_discrepancy:
-          depositDiscrepancy === "" ? undefined : Number(depositDiscrepancy),
       });
 
       toast.success("Closing verified successfully.");
@@ -279,23 +275,6 @@ export default function VerifyClosing() {
                   value={returnedChange}
                   onChange={(e) =>
                     setReturnedChange(
-                      e.target.value === "" ? "" : Number(e.target.value)
-                    )
-                  }
-                  className="px-3 py-2 rounded-lg border bg-white mt-1"
-                />
-              </div>
-
-              <div className="flex flex-col">
-                <label className="text-sm text-gray-600">
-                  Deposit Discrepancy
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={depositDiscrepancy}
-                  onChange={(e) =>
-                    setDepositDiscrepancy(
                       e.target.value === "" ? "" : Number(e.target.value)
                     )
                   }
