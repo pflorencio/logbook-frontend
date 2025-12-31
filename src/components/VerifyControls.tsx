@@ -40,17 +40,19 @@ export default function VerifyControls({
     setLoading(true);
 
     try {
-      await verifyClosing({
+      const payload = {
         record_id: record.id,
         status,
         verified_by: verifiedBy,
         notes,
-        card_tips: cardTips === "" ? undefined : Number(cardTips),
-        returned_change:
-          returnedChange === "" ? undefined : Number(returnedChange),
-        deposit_discrepancy:
-          depositDiscrepancy === "" ? undefined : Number(depositDiscrepancy),
-      });
+
+        // ✅ NEW: deposit fields (safe even if undefined)
+        card_tips: record.fields["Card Tips"] ?? null,
+        returned_change: record.fields["Returned Change"] ?? null,
+        deposit_discrepancy: record.fields["Deposit Discrepancy"] ?? null,
+      };
+
+      const res = await verifyClosing(payload);
 
       toast.success(
         status === "Verified"
@@ -58,7 +60,7 @@ export default function VerifyControls({
           : "Marked as: Needs Update"
       );
 
-      const updatedRecord = {
+      onUpdate({
         ...record,
         fields: {
           ...record.fields,
@@ -66,15 +68,8 @@ export default function VerifyControls({
           "Verification Notes": notes,
           "Verified By": verifiedBy,
           "Verified At": new Date().toISOString(),
-          "Card Tips": cardTips === "" ? undefined : Number(cardTips),
-          "Returned Change":
-            returnedChange === "" ? undefined : Number(returnedChange),
-          "Deposit Discrepancy":
-            depositDiscrepancy === "" ? undefined : Number(depositDiscrepancy),
         },
-      };
-
-      onUpdate(updatedRecord);
+      });
     } catch (err) {
       console.error(err);
       toast.error("Failed to update verification status.");
