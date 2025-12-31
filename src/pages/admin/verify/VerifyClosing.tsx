@@ -15,6 +15,11 @@ export default function VerifyClosing() {
   const [storeName, setStoreName] = useState<string | null>(null);
   const [businessDate, setBusinessDate] = useState<string | null>(null);
 
+  // ✅ NEW: Admin-entered deposit adjustments
+  const [cardTips, setCardTips] = useState<number | "">("");
+  const [returnedChange, setReturnedChange] = useState<number | "">("");
+  const [depositDiscrepancy, setDepositDiscrepancy] = useState<number | "">("");
+
   // Local helper
   const peso = (n: number | string | null | undefined) =>
     !n && n !== 0 ? "₱0" : `₱${Number(n).toLocaleString("en-PH")}`;
@@ -45,6 +50,11 @@ export default function VerifyClosing() {
         Notes: data.fields["Notes"] || "",
       });
 
+      // ✅ Prefill admin fields from Airtable (if present)
+      setCardTips(data.fields["Card Tips"] ?? "");
+      setReturnedChange(data.fields["Returned Change"] ?? "");
+      setDepositDiscrepancy(data.fields["Deposit Discrepancy"] ?? "");
+
       const bd = data.fields.Date;
       const storeId = data.fields.Store?.[0];
 
@@ -70,7 +80,6 @@ export default function VerifyClosing() {
     loadRecord();
   }, [recordId]);
 
-
   // ------------------------------------------------
   // UPDATE FIELD LOCALLY
   // ------------------------------------------------
@@ -80,7 +89,6 @@ export default function VerifyClosing() {
       [name]: value === "" ? "" : Number(value),
     }));
   }
-
 
   // ------------------------------------------------
   // SAVE CHANGES (PATCH)
@@ -112,7 +120,6 @@ export default function VerifyClosing() {
     }
   }
 
-
   // ------------------------------------------------
   // VERIFY RECORD (POST /verify)
   // ------------------------------------------------
@@ -121,7 +128,13 @@ export default function VerifyClosing() {
       const session = JSON.parse(localStorage.getItem("session") || "{}");
       const verifiedBy = session.name || "Manager";
 
-      await verifyRecord(recordId!, "verified", verifiedBy);
+      await verifyRecord(recordId!, "Verified", verifiedBy, {
+        card_tips: cardTips === "" ? undefined : Number(cardTips),
+        returned_change:
+          returnedChange === "" ? undefined : Number(returnedChange),
+        deposit_discrepancy:
+          depositDiscrepancy === "" ? undefined : Number(depositDiscrepancy),
+      });
 
       toast.success("Closing verified successfully.");
       navigate(`/admin/closing/${recordId}`);
@@ -131,11 +144,9 @@ export default function VerifyClosing() {
     }
   }
 
-
   return (
     <AdminLayout>
       <div className="p-6 space-y-6">
-
         {/* HEADER */}
         <div className="flex items-center justify-between">
           <div>
@@ -160,23 +171,32 @@ export default function VerifyClosing() {
 
         {!loading && fields && (
           <>
-
             {/* SUMMARY CARDS */}
             {summary && (
               <div className="grid md:grid-cols-4 gap-4 mt-4">
                 <div className="p-4 bg-white shadow rounded-xl border">
                   <p className="text-xs text-gray-500">Variance</p>
-                  <p className={`text-lg font-bold ${summary.variance < 0 ? "text-red-600" : "text-green-700"}`}>
+                  <p
+                    className={`text-lg font-bold ${
+                      summary.variance < 0
+                        ? "text-red-600"
+                        : "text-green-700"
+                    }`}
+                  >
                     {peso(summary.variance)}
                   </p>
                 </div>
                 <div className="p-4 bg-white shadow rounded-xl border">
                   <p className="text-xs text-gray-500">Total Budgets</p>
-                  <p className="text-lg font-bold">{peso(summary.total_budgets)}</p>
+                  <p className="text-lg font-bold">
+                    {peso(summary.total_budgets)}
+                  </p>
                 </div>
                 <div className="p-4 bg-white shadow rounded-xl border">
                   <p className="text-xs text-gray-500">Cash for Deposit</p>
-                  <p className="text-lg font-bold">{peso(summary.cash_for_deposit)}</p>
+                  <p className="text-lg font-bold">
+                    {peso(summary.cash_for_deposit)}
+                  </p>
                 </div>
                 <div className="p-4 bg-white shadow rounded-xl border">
                   <p className="text-xs text-gray-500">Transfer Needed</p>
@@ -189,7 +209,9 @@ export default function VerifyClosing() {
 
             {/* EDITABLE FIELDS */}
             <div className="bg-white shadow rounded-xl border p-6 space-y-4 mt-6">
-              <h2 className="text-lg font-semibold mb-2">Adjust Editable Fields</h2>
+              <h2 className="text-lg font-semibold mb-2">
+                Adjust Editable Fields
+              </h2>
 
               {[
                 "Actual Cash Counted",
@@ -226,6 +248,58 @@ export default function VerifyClosing() {
               </div>
             </div>
 
+            {/* ✅ NEW: Deposit Adjustments */}
+            <div className="bg-white shadow rounded-xl border p-6 space-y-4 mt-6">
+              <h2 className="text-lg font-semibold">
+                Deposit Adjustments (Admin)
+              </h2>
+
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-600">Card Tips</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={cardTips}
+                  onChange={(e) =>
+                    setCardTips(e.target.value === "" ? "" : Number(e.target.value))
+                  }
+                  className="px-3 py-2 rounded-lg border bg-white mt-1"
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-600">Returned Change</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={returnedChange}
+                  onChange={(e) =>
+                    setReturnedChange(
+                      e.target.value === "" ? "" : Number(e.target.value)
+                    )
+                  }
+                  className="px-3 py-2 rounded-lg border bg-white mt-1"
+                />
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-sm text-gray-600">
+                  Deposit Discrepancy
+                </label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={depositDiscrepancy}
+                  onChange={(e) =>
+                    setDepositDiscrepancy(
+                      e.target.value === "" ? "" : Number(e.target.value)
+                    )
+                  }
+                  className="px-3 py-2 rounded-lg border bg-white mt-1"
+                />
+              </div>
+            </div>
+
             {/* ACTION BUTTONS */}
             <div className="flex items-center gap-4 mt-8">
               <button
@@ -249,7 +323,6 @@ export default function VerifyClosing() {
                 Cancel
               </button>
             </div>
-
           </>
         )}
       </div>
