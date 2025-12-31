@@ -59,7 +59,7 @@ export default function VerifyClosing() {
       setReturnedChange(resolvedFields["Returned Change"] ?? "");
       setDepositDiscrepancy(resolvedFields["Deposit Discrepancy"] ?? "");
 
-      cconst bd = resolvedFields.Date;
+      const bd = resolvedFields.Date;
       const storeId = resolvedFields.Store?.[0];
 
       setBusinessDate(bd);
