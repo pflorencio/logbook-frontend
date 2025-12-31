@@ -14,7 +14,6 @@ import Login from "@/pages/Login";
 
 import CashierForm from "./pages/CashierForm";
 import SettingsPage from "./pages/settings";
-import HomePage from "./pages/index";
 import HistoryPage from "./pages/history";
 
 // Admin Pages

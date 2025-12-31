@@ -31,6 +31,14 @@ export async function promptPWAInstall() {
   deferredInstallPrompt = null;
 }
 
+export function isPWAInstalled() {
+  return (
+    window.matchMedia("(display-mode: standalone)").matches ||
+    // @ts-ignore
+    window.navigator.standalone === true
+  );
+}
+
 /* -------------------------------------------------------------
    PWA v1 — Service Worker Registration (Cashier)
 ------------------------------------------------------------- */

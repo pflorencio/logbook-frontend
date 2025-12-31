@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchUsers, loginUser } from "@/lib/api";
-import { promptPWAInstall } from "@/main"; // ✅ import your installer
+import { promptPWAInstall, isPWAInstalled } from "@/main";
 
 interface User {
   user_id: string;
@@ -21,14 +21,16 @@ const Login: React.FC = () => {
   const [pin, setPin] = useState("");
   const [error, setError] = useState("");
 
-  // ✅ PWA install button state
+  // ✅ PWA install state
   const [canInstall, setCanInstall] = useState(false);
   const [isStandalone, setIsStandalone] = useState(false);
 
+  // Clear any stale session on login load
   useEffect(() => {
     localStorage.clear();
   }, []);
 
+  // Load active users
   useEffect(() => {
     async function load() {
       try {
@@ -41,7 +43,7 @@ const Login: React.FC = () => {
     load();
   }, []);
 
-  // ✅ Detect if already installed (standalone mode)
+  // Detect standalone / installed mode
   useEffect(() => {
     const standalone =
       window.matchMedia?.("(display-mode: standalone)")?.matches ||
@@ -51,14 +53,14 @@ const Login: React.FC = () => {
     setIsStandalone(!!standalone);
   }, []);
 
-  // ✅ Listen for install readiness event fired from main.tsx
+  // Listen for install readiness event from main.tsx
   useEffect(() => {
     const onReady = () => setCanInstall(true);
     window.addEventListener("pwa-install-ready", onReady);
 
-    // In case the event fired before Login mounted,
-    // you can still rely on Chrome UI; this is best-effort.
-    return () => window.removeEventListener("pwa-install-ready", onReady);
+    return () => {
+      window.removeEventListener("pwa-install-ready", onReady);
+    };
   }, []);
 
   const handleLogin = async () => {
@@ -110,10 +112,10 @@ const Login: React.FC = () => {
   const handleInstall = async () => {
     try {
       await promptPWAInstall();
-      // Optional: hide after clicking (even if user cancels)
+      // Hide button after interaction (even if dismissed)
       setCanInstall(false);
-    } catch (e) {
-      console.error("❌ PWA install prompt failed:", e);
+    } catch (err) {
+      console.error("❌ PWA install prompt failed:", err);
     }
   };
 
@@ -162,7 +164,7 @@ const Login: React.FC = () => {
           Login
         </button>
 
-        {/* ✅ Permanent install button (only when installable + not already installed) */}
+        {/* ✅ Permanent PWA install CTA */}
         {!isStandalone && canInstall && (
           <button
             onClick={handleInstall}
