@@ -15,9 +15,12 @@ export default function VerifyClosing() {
   const [storeName, setStoreName] = useState<string | null>(null);
   const [businessDate, setBusinessDate] = useState<string | null>(null);
 
-  // ✅ NEW: Admin-entered deposit adjustments
+  // Admin-entered deposit adjustments
   const [cardTips, setCardTips] = useState<number | "">("");
   const [returnedChange, setReturnedChange] = useState<number | "">("");
+
+  // Derived state
+  const isLocked = fields?.["Lock Status"] === "Locked";
 
   // Local helper
   const peso = (n: number | string | null | undefined) =>
@@ -53,7 +56,7 @@ export default function VerifyClosing() {
         Notes: resolvedFields["Notes"] || "",
       });
 
-      // ✅ Prefill admin fields from Airtable (if present)
+      // Prefill admin fields
       setCardTips(resolvedFields["Card Tips"] ?? "");
       setReturnedChange(resolvedFields["Returned Change"] ?? "");
 
@@ -185,19 +188,32 @@ export default function VerifyClosing() {
                   >
                     {peso(summary.variance)}
                   </p>
+                  {isLocked && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Final (post-verification)
+                    </p>
+                  )}
                 </div>
+
                 <div className="p-4 bg-white shadow rounded-xl border">
                   <p className="text-xs text-gray-500">Total Budgets</p>
                   <p className="text-lg font-bold">
                     {peso(summary.total_budgets)}
                   </p>
                 </div>
+
                 <div className="p-4 bg-white shadow rounded-xl border">
                   <p className="text-xs text-gray-500">Cash for Deposit</p>
                   <p className="text-lg font-bold">
                     {peso(summary.cash_for_deposit)}
                   </p>
+                  {isLocked && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Includes admin adjustments
+                    </p>
+                  )}
                 </div>
+
                 <div className="p-4 bg-white shadow rounded-xl border">
                   <p className="text-xs text-gray-500">Transfer Needed</p>
                   <p className="text-lg font-bold text-red-600">
@@ -228,6 +244,7 @@ export default function VerifyClosing() {
                     value={editable[field]}
                     onChange={(e) => updateField(field, e.target.value)}
                     className="px-3 py-2 rounded-lg border bg-white mt-1"
+                    disabled={isLocked}
                   />
                 </div>
               ))}
@@ -244,68 +261,77 @@ export default function VerifyClosing() {
                     }))
                   }
                   className="px-3 py-2 rounded-lg border bg-white mt-1 h-24"
+                  disabled={isLocked}
                 />
               </div>
             </div>
 
-            {/* ✅ NEW: Deposit Adjustments */}
-            <div className="bg-white shadow rounded-xl border p-6 space-y-4 mt-6">
-              <h2 className="text-lg font-semibold">
-                Deposit Adjustments (Admin)
-              </h2>
+            {/* DEPOSIT ADJUSTMENTS */}
+            {!isLocked && (
+              <div className="bg-white shadow rounded-xl border p-6 space-y-4 mt-6">
+                <h2 className="text-lg font-semibold">
+                  Deposit Adjustments (Admin)
+                </h2>
 
-              <div className="flex flex-col">
-                <label className="text-sm text-gray-600">Card Tips</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={cardTips}
-                  onChange={(e) =>
-                    setCardTips(e.target.value === "" ? "" : Number(e.target.value))
-                  }
-                  className="px-3 py-2 rounded-lg border bg-white mt-1"
-                />
-              </div>
+                <div className="flex flex-col">
+                  <label className="text-sm text-gray-600">Card Tips</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={cardTips}
+                    onChange={(e) =>
+                      setCardTips(
+                        e.target.value === "" ? "" : Number(e.target.value)
+                      )
+                    }
+                    className="px-3 py-2 rounded-lg border bg-white mt-1"
+                  />
+                </div>
 
-              <div className="flex flex-col">
-                <label className="text-sm text-gray-600">Returned Change</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={returnedChange}
-                  onChange={(e) =>
-                    setReturnedChange(
-                      e.target.value === "" ? "" : Number(e.target.value)
-                    )
-                  }
-                  className="px-3 py-2 rounded-lg border bg-white mt-1"
-                />
+                <div className="flex flex-col">
+                  <label className="text-sm text-gray-600">
+                    Returned Change
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={returnedChange}
+                    onChange={(e) =>
+                      setReturnedChange(
+                        e.target.value === "" ? "" : Number(e.target.value)
+                      )
+                    }
+                    className="px-3 py-2 rounded-lg border bg-white mt-1"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* ACTION BUTTONS */}
-            <div className="flex items-center gap-4 mt-8">
-              <button
-                onClick={handleSave}
-                className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
-              >
-                Save Changes
-              </button>
+            {!isLocked && (
+              <div className="flex items-center gap-4 mt-8">
+                <button
+                  onClick={handleSave}
+                  className="px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700"
+                >
+                  Save Changes
+                </button>
 
-              <button
-                onClick={handleVerify}
-                className="px-5 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700"
-              >
-                Verify Closing
-              </button>
+                <button
+                  onClick={handleVerify}
+                  className="px-5 py-3 bg-green-600 text-white rounded-xl hover:bg-green-700"
+                >
+                  Verify Closing
+                </button>
 
-              <button
-                onClick={() => navigate(`/admin/closing/${recordId}`)}
-                className="px-5 py-3 bg-gray-200 rounded-xl hover:bg-gray-300"
-              >
-                Cancel
-              </button>
-            </div>
+                <button
+                  onClick={() => navigate(`/admin/closing/${recordId}`)}
+                  className="px-5 py-3 bg-gray-200 rounded-xl hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
