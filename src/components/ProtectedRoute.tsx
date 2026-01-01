@@ -55,6 +55,8 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   // 🌐 DOMAIN-LEVEL ACCESS RULES
   // ----------------------------------------------
 
+  const hostname = window.location.hostname;
+
   // admin.logbook.ph → ONLY admin / manager
   if (hostname.startsWith("admin.")) {
     if (userRole !== "admin" && userRole !== "manager") {
@@ -65,7 +67,7 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   }
 
   // ----------------------------------------------
-  // 🚨 PATH-LEVEL ROLE RULES
+  // 🚨 PATH-LEVEL ROLE RULES (PHASE 1)
   // ----------------------------------------------
 
   // /admin routes → admin / manager only
@@ -76,11 +78,15 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
     }
   }
 
-  // /cashier routes → cashier only
+  // /cashier routes →
+  // ✅ cashiers always allowed
+  // ✅ admin / manager allowed ONLY if a store is selected
   if (location.pathname.startsWith("/cashier")) {
-    if (userRole !== "cashier") {
-      console.warn("⛔ Manager/Admin blocked from cashier route.");
-      return <Navigate to="/admin" replace />;
+    if (userRole === "admin" || userRole === "manager") {
+      if (!session.activeStoreId) {
+        console.warn("⛔ Admin/Manager missing activeStoreId for cashier route.");
+        return <Navigate to="/login" replace />;
+      }
     }
   }
 
