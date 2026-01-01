@@ -237,7 +237,7 @@ const Login: React.FC = () => {
             <option value="">Select your name</option>
             {users.map((u) => (
               <option key={u.user_id} value={u.user_id}>
-                {u.name} — {u.store?.name || "No Store"}
+                {u.name}
               </option>
             ))}
           </select>
