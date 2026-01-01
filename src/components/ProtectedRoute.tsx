@@ -52,6 +52,13 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   localStorage.setItem("session", JSON.stringify(session));
 
   // ----------------------------------------------
+  // ⏳ ALLOW LOGIN PAGE DURING STORE SELECTION
+  // ----------------------------------------------
+  if (location.pathname === "/login") {
+    return <>{children}</>;
+  }
+  
+  // ----------------------------------------------
   // 🌐 DOMAIN-LEVEL ACCESS RULES
   // ----------------------------------------------
 
@@ -86,7 +93,7 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
     // Admin/Manager MUST have activeStoreId
     if (!session.activeStoreId) {
       console.warn("⏳ Waiting for store selection.");
-      return <Navigate to="/login" replace />;
+      return <>{children}</>;
     }
   }
 
