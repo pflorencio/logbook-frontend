@@ -9,13 +9,6 @@ interface ProtectedRouteProps {
 export default function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const location = useLocation();
   const hostname = window.location.hostname;
-
-  // ----------------------------------------------
-  // ⏳ ALLOW LOGIN PAGE DURING STORE SELECTION
-  // ----------------------------------------------
-  if (location.pathname === "/login") {
-    return <>{children}</>;
-  }
   
   // ----------------------------------------------
   // LOAD SESSION
@@ -23,22 +16,25 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   const raw = localStorage.getItem("session");
   const token = localStorage.getItem("token");
 
+  // ✅ Allow login ONLY when not authenticated
+  if (location.pathname === "/login" && (!raw || !token)) {
+    return <>{children}</>;
+  }
+
+  // 🚫 Block login page once authenticated
+  if (location.pathname === "/login" && raw && token) {
+    const session = JSON.parse(raw);
+    return <Navigate
+      to={session.activeStoreId ? "/cashier" : "/admin"}
+      replace
+    />;
+  }
+
+  // 🚫 No session → force login
   if (!raw || !token) {
     console.warn("⛔ No valid session found. Redirecting to login.");
     return <Navigate to="/login" replace />;
   }
-
-  // Safely parse session
-  let session: any = null;
-  try {
-    session = JSON.parse(raw);
-  } catch (err) {
-    console.error("⛔ Invalid session JSON:", err);
-    localStorage.clear();
-    return <Navigate to="/login" replace />;
-  }
-
-  const userRole: string = session.role || "cashier";
 
   // ----------------------------------------------
   // SESSION TIMEOUT (1 hour)
