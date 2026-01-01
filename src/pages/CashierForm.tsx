@@ -875,8 +875,7 @@ const CashierForm: React.FC = () => {
                 </h2>
 
                 <p className="text-xs text-gray-500 text-center">
-                  Enter the estimated total operational spend for tomorrow. This is used for
-                  planning and weekly budget pacing.
+                  Enter the estimated total operational spend for tomorrow. Refer to the Weekly Budget Context above to guide you.
                 </p>
 
                 <div className="grid md:grid-cols-2 gap-4">
@@ -944,7 +943,7 @@ const CashierForm: React.FC = () => {
                 </h2>
 
                 <p className="text-xs text-gray-500 text-center">
-                  Add any important context (e.g. marketing expenses, unusual variance,
+                  Add any important context and Tip Totals for the day (e.g. marketing expenses, unusual variance,
                   operational issues).
                 </p>
 
@@ -954,7 +953,7 @@ const CashierForm: React.FC = () => {
                   onChange={(e) => handleChange("closingNotes", e.target.value)}
                   rows={4}
                   className={`${inputBase} ${isLocked ? inputDisabled : ""}`}
-                  placeholder="Example: Marketing expense was for influencer promo. Variance due to delayed Grab payout."
+                  placeholder="Example: Marketing expense was for influencer promo."
                 />
               </section>
 
