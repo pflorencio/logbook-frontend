@@ -11,6 +11,13 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   const hostname = window.location.hostname;
 
   // ----------------------------------------------
+  // ⏳ ALLOW LOGIN PAGE DURING STORE SELECTION
+  // ----------------------------------------------
+  if (location.pathname === "/login") {
+    return <>{children}</>;
+  }
+  
+  // ----------------------------------------------
   // LOAD SESSION
   // ----------------------------------------------
   const raw = localStorage.getItem("session");
@@ -50,13 +57,6 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   // ----------------------------------------------
   session.timestamp = Date.now();
   localStorage.setItem("session", JSON.stringify(session));
-
-  // ----------------------------------------------
-  // ⏳ ALLOW LOGIN PAGE DURING STORE SELECTION
-  // ----------------------------------------------
-  if (location.pathname === "/login") {
-    return <>{children}</>;
-  }
   
   // ----------------------------------------------
   // 🌐 DOMAIN-LEVEL ACCESS RULES
