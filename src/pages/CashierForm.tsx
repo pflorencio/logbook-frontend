@@ -70,6 +70,14 @@ const CashierForm: React.FC = () => {
   console.log("🧾 CashierForm v11 — with fetch debugging enabled");
 
   // ----------------------------------------------
+  // ACTIVE STORE (from login store picker)
+  // ----------------------------------------------
+  const session = JSON.parse(localStorage.getItem("session") || "{}");
+
+  const activeStoreId = session.activeStoreId || null;
+  const activeStoreName = session.activeStoreName || null;
+
+  // ----------------------------------------------
   // SESSION
   // ----------------------------------------------
   const session = JSON.parse(localStorage.getItem("session") || "{}");
@@ -84,6 +92,17 @@ const CashierForm: React.FC = () => {
     localStorage.clear();
     navigate("/login");
   };
+
+  // ----------------------------------------------
+  // 🚨 STORE GUARD (Phase 1)
+  // ----------------------------------------------
+  useEffect(() => {
+    if (!storeId) {
+      toast.error("No store selected. Please log in again.");
+      navigate("/login");
+    }
+  }, [storeId, navigate]);
+
 
   // ----------------------------------------------
   // NEEDS UPDATE STATE (separated concerns)
@@ -545,7 +564,6 @@ const CashierForm: React.FC = () => {
       const payload = {
         business_date: selectedDate,
         store_id: storeId,
-        store_name: storeName,
 
         total_sales: Number(form.totalSales),
         net_sales: Number(form.netSales),

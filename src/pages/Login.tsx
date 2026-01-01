@@ -22,6 +22,10 @@ const Login: React.FC = () => {
   const [error, setError] = useState("");
   const [isStandalone, setIsStandalone] = useState(false);
 
+  // ⭐ Phase 1 additions
+  const [showStorePicker, setShowStorePicker] = useState(false);
+  const [pendingAuth, setPendingAuth] = useState<any>(null);
+
   // --------------------------------------------------
   // Clear previous session on load
   // --------------------------------------------------
@@ -42,12 +46,12 @@ const Login: React.FC = () => {
         const filtered = list.filter((u) => {
           if (!u.active) return false;
 
-          // admin.logbook.ph should NEVER show cashiers
+          // admin.logbook.ph → managers/admins only
           if (isAdminDomain) {
             return u.role === "admin" || u.role === "manager";
           }
 
-          // app.logbook.ph shows everyone
+          // app.logbook.ph → everyone
           return true;
         });
 
@@ -90,7 +94,6 @@ const Login: React.FC = () => {
 
     try {
       const authData = await loginUser(user.user_id, pin);
-
       const hostname = window.location.hostname;
 
       // 🚫 Block cashiers from admin domain
@@ -99,17 +102,42 @@ const Login: React.FC = () => {
         return;
       }
 
+      const storeAccess =
+        authData.store_access?.map((s: any) => ({
+          id: s.id,
+          name: s.name || null,
+        })) || [];
+
+      // ----------------------------------
+      // MULTI-STORE (Admin/Manager on app)
+      // ----------------------------------
+      if (
+        (authData.role === "admin" || authData.role === "manager") &&
+        storeAccess.length > 1 &&
+        !hostname.startsWith("admin.")
+      ) {
+        setPendingAuth(authData);
+        setShowStorePicker(true);
+        return;
+      }
+
+      // ----------------------------------
+      // SINGLE-STORE or CASHIER
+      // ----------------------------------
+      const selectedStore =
+        storeAccess.length === 1
+          ? storeAccess[0]
+          : authData.store
+          ? { id: authData.store.id, name: authData.store.name }
+          : null;
+
       const session = {
         userId: authData.user_id,
         name: authData.name,
         role: authData.role,
-        storeId: authData.store?.id || null,
-        storeName: authData.store?.name || null,
-        storeAccess:
-          authData.store_access?.map((s: any) => ({
-            id: s.id,
-            name: s.name || null,
-          })) || [],
+        activeStoreId: selectedStore?.id || null,
+        activeStoreName: selectedStore?.name || null,
+        storeAccess,
         timestamp: Date.now(),
       };
 
@@ -117,9 +145,7 @@ const Login: React.FC = () => {
       localStorage.setItem("token", "logged_in");
 
       navigate(
-        authData.role === "admin" || authData.role === "manager"
-          ? "/admin"
-          : "/cashier",
+        hostname.startsWith("admin.") ? "/admin" : "/cashier",
         { replace: true }
       );
     } catch (err) {
@@ -128,12 +154,66 @@ const Login: React.FC = () => {
     }
   };
 
+  // --------------------------------------------------
+  // Handle store selection (Phase 1)
+  // --------------------------------------------------
+  const handleSelectStore = (store: { id: string; name: string }) => {
+    if (!pendingAuth) return;
+
+    const session = {
+      userId: pendingAuth.user_id,
+      name: pendingAuth.name,
+      role: pendingAuth.role,
+      activeStoreId: store.id,
+      activeStoreName: store.name,
+      storeAccess:
+        pendingAuth.store_access?.map((s: any) => ({
+          id: s.id,
+          name: s.name || null,
+        })) || [],
+      timestamp: Date.now(),
+    };
+
+    localStorage.setItem("session", JSON.stringify(session));
+    localStorage.setItem("token", "logged_in");
+
+    navigate("/cashier", { replace: true });
+  };
+
   const handleInstall = async () => {
     await promptPWAInstall();
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
+      {/* ------------------------------------
+          STORE PICKER MODAL (PHASE 1)
+      ------------------------------------ */}
+      {showStorePicker && pendingAuth && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl">
+            <h2 className="text-lg font-semibold mb-4 text-center">
+              Select Store
+            </h2>
+
+            <div className="space-y-3">
+              {pendingAuth.store_access.map((store: any) => (
+                <button
+                  key={store.id}
+                  onClick={() => handleSelectStore(store)}
+                  className="w-full py-3 rounded-xl border hover:bg-blue-50 font-medium"
+                >
+                  {store.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------
+          LOGIN CARD
+      ------------------------------------ */}
       <div className="w-full max-w-md bg-white shadow-xl rounded-2xl p-8 text-center">
         <h1 className="text-2xl font-semibold mb-2">Staff Login</h1>
         <p className="text-gray-500 mb-6">
