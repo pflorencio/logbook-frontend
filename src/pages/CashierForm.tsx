@@ -70,23 +70,21 @@ const CashierForm: React.FC = () => {
   console.log("🧾 CashierForm v11 — with fetch debugging enabled");
 
   // ----------------------------------------------
-  // ACTIVE STORE (from login store picker)
+  // SESSION (single source of truth)
   // ----------------------------------------------
   const session = JSON.parse(localStorage.getItem("session") || "{}");
 
-  const activeStoreId = session.activeStoreId || null;
-  const activeStoreName = session.activeStoreName || null;
+  // Active store (Phase 1 store picker)
+  const activeStoreId: string | null = session.activeStoreId || null;
+  const activeStoreName: string | null = session.activeStoreName || null;
 
-  // ----------------------------------------------
-  // SESSION
-  // ----------------------------------------------
-  const session = JSON.parse(localStorage.getItem("session") || "{}");
-
+  // User info
   const userName: string = session.name || "Cashier";
-  const storeId: string = session.storeId || null;
-  const storeName: string = session.storeName || null;
+  const storeId: string | null = session.storeId || null; // legacy / fallback
+  const storeName: string | null = session.storeName || null; // legacy / fallback
   const submittedBy: string = userName;
 
+  // Navigation
   const navigate = useNavigate();
   const handleLogout = () => {
     localStorage.clear();
