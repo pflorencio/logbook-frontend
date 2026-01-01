@@ -34,6 +34,8 @@ interface FormState {
   staffMealBudget: string | number;
   actualCashCounted: string | number;
   cashFloat: string | number;
+
+  closingNotes: string; // ✅ NEW (Cashier-entered notes)
 }
 
 const numericFields: (keyof FormState)[] = [
@@ -164,6 +166,7 @@ const CashierForm: React.FC = () => {
     staffMealBudget: "",
     actualCashCounted: "",
     cashFloat: "",
+    closingNotes: "",
   });
 
   const [originalForm, setOriginalForm] = useState<FormState | null>(null);
@@ -345,6 +348,7 @@ const CashierForm: React.FC = () => {
       staffMealBudget: f["Staff Meal Budget"] ?? "",
       actualCashCounted: f["Actual Cash Counted"] ?? "",
       cashFloat: f["Cash Float"] ?? "",
+      closingNotes: f["Closing Notes"] ?? "",
     };
   }
 
@@ -561,6 +565,8 @@ const CashierForm: React.FC = () => {
 
         actual_cash_counted: Number(form.actualCashCounted),
         cash_float: Number(form.cashFloat),
+
+        closing_notes: form.closingNotes,
 
         submitted_by: submittedBy,
       };
@@ -905,6 +911,27 @@ const CashierForm: React.FC = () => {
                     </div>
                   ))}
                 </div>
+              </section>
+
+              {/* CLOSING NOTES */}
+              <section className={sectionCard}>
+                <h2 className="text-sm font-semibold text-gray-700 text-center uppercase">
+                  Closing Notes
+                </h2>
+
+                <p className="text-xs text-gray-500 text-center">
+                  Add any important context (e.g. marketing expenses, unusual variance,
+                  operational issues).
+                </p>
+
+                <textarea
+                  disabled={isLocked}
+                  value={form.closingNotes}
+                  onChange={(e) => handleChange("closingNotes", e.target.value)}
+                  rows={4}
+                  className={`${inputBase} ${isLocked ? inputDisabled : ""}`}
+                  placeholder="Example: Marketing expense was for influencer promo. Variance due to delayed Grab payout."
+                />
               </section>
 
               {/* SUMMARY */}
