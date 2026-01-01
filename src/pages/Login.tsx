@@ -30,7 +30,10 @@ const Login: React.FC = () => {
   // Clear previous session on load
   // --------------------------------------------------
   useEffect(() => {
-    localStorage.clear();
+    const existing = localStorage.getItem("session");
+    if (!existing) {
+      localStorage.clear();
+    }
   }, []);
 
   // --------------------------------------------------
@@ -179,7 +182,8 @@ const Login: React.FC = () => {
     localStorage.setItem("session", JSON.stringify(session));
     localStorage.setItem("token", "logged_in");
 
-    // ✅ ALWAYS go to cashier after store selection
+    console.log("✅ Store selected, session =", session);
+
     navigate("/cashier", { replace: true });
   };
 

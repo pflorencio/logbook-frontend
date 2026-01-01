@@ -92,15 +92,14 @@ const CashierForm: React.FC = () => {
   };
 
   // ----------------------------------------------
-  // 🚨 STORE GUARD (Phase 1)
+  // 🚨 STORE GUARD (Phase 1 — ACTIVE STORE REQUIRED)
   // ----------------------------------------------
   useEffect(() => {
-    if (!storeId) {
+    if (!activeStoreId) {
       toast.error("No store selected. Please log in again.");
       navigate("/login");
     }
-  }, [storeId, navigate]);
-
+  }, [activeStoreId, navigate]);
 
   // ----------------------------------------------
   // NEEDS UPDATE STATE (separated concerns)

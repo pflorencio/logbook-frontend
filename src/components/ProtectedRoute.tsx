@@ -10,10 +10,19 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   const location = useLocation();
   const hostname = window.location.hostname;
 
+  // ✅ ALWAYS allow login page (store picker lives here)
+  if (location.pathname === "/login") {
+    return <>{children}</>;
+  }
+
+  // ----------------------------------------------
+  // LOAD SESSION
+  // ----------------------------------------------
   const raw = localStorage.getItem("session");
   const token = localStorage.getItem("token");
 
   if (!raw || !token) {
+    console.warn("⛔ No valid session found.");
     return <Navigate to="/login" replace />;
   }
 
@@ -27,7 +36,9 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
 
   const userRole = session.role;
 
-  // Session expiry
+  // ----------------------------------------------
+  // SESSION TIMEOUT
+  // ----------------------------------------------
   if (!session.timestamp || Date.now() - session.timestamp > 60 * 60 * 1000) {
     localStorage.clear();
     return <Navigate to="/login" replace />;
@@ -36,21 +47,27 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   session.timestamp = Date.now();
   localStorage.setItem("session", JSON.stringify(session));
 
-  // Domain rules
+  // ----------------------------------------------
+  // DOMAIN RULES
+  // ----------------------------------------------
   if (hostname.startsWith("admin.")) {
     if (!["admin", "manager"].includes(userRole)) {
       return <Navigate to="/login" replace />;
     }
   }
 
-  // Admin routes
+  // ----------------------------------------------
+  // ADMIN ROUTES
+  // ----------------------------------------------
   if (location.pathname.startsWith("/admin")) {
     if (!["admin", "manager"].includes(userRole)) {
       return <Navigate to="/login" replace />;
     }
   }
 
-  // Cashier routes
+  // ----------------------------------------------
+  // CASHIER ROUTES
+  // ----------------------------------------------
   if (location.pathname.startsWith("/cashier")) {
     if (userRole === "cashier") return <>{children}</>;
 
@@ -58,10 +75,13 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
       return <>{children}</>;
     }
 
+    console.warn("⛔ Admin/Manager missing activeStoreId");
     return <Navigate to="/login" replace />;
   }
 
-  // Optional role guard
+  // ----------------------------------------------
+  // OPTIONAL ROLE GUARD
+  // ----------------------------------------------
   if (roles && !roles.includes(userRole)) {
     return <Navigate to="/login" replace />;
   }
