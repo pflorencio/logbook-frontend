@@ -55,8 +55,6 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   // 🌐 DOMAIN-LEVEL ACCESS RULES
   // ----------------------------------------------
 
-  const hostname = window.location.hostname;
-
   // admin.logbook.ph → ONLY admin / manager
   if (hostname.startsWith("admin.")) {
     if (userRole !== "admin" && userRole !== "manager") {
