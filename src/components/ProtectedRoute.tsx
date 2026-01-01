@@ -3,94 +3,97 @@ import { Navigate, useLocation } from "react-router-dom";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  roles?: string[]; // optional role-based access
+  roles?: string[];
 }
 
 export default function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const location = useLocation();
   const hostname = window.location.hostname;
-  
+
   // ----------------------------------------------
-  // LOAD SESSION
+  // LOAD SESSION (SINGLE SOURCE OF TRUTH)
   // ----------------------------------------------
   const raw = localStorage.getItem("session");
   const token = localStorage.getItem("token");
 
-  // ✅ Allow login ONLY when not authenticated
-  if (location.pathname === "/login" && (!raw || !token)) {
+  let session: any = null;
+
+  if (raw) {
+    try {
+      session = JSON.parse(raw);
+    } catch (err) {
+      console.error("⛔ Invalid session JSON:", err);
+      localStorage.clear();
+    }
+  }
+
+  // ----------------------------------------------
+  // LOGIN PAGE RULES
+  // ----------------------------------------------
+
+  // ✅ Not logged in → allow login page
+  if (location.pathname === "/login" && (!session || !token)) {
     return <>{children}</>;
   }
 
-  // 🚫 Block login page once authenticated
-  if (location.pathname === "/login" && raw && token) {
-    const session = JSON.parse(raw);
-    return <Navigate
-      to={session.activeStoreId ? "/cashier" : "/admin"}
-      replace
-    />;
+  // 🚫 Logged in → block login page
+  if (location.pathname === "/login" && session && token) {
+    return (
+      <Navigate
+        to={session.activeStoreId ? "/cashier" : "/admin"}
+        replace
+      />
+    );
   }
 
-  // 🚫 No session → force login
-  if (!raw || !token) {
+  // 🚫 No session anywhere else
+  if (!session || !token) {
     console.warn("⛔ No valid session found. Redirecting to login.");
     return <Navigate to="/login" replace />;
   }
+
+  const userRole: string = session.role || "cashier";
 
   // ----------------------------------------------
   // SESSION TIMEOUT (1 hour)
   // ----------------------------------------------
   const ONE_HOUR = 60 * 60 * 1000;
-  const lastTimestamp = session.timestamp;
-
-  if (!lastTimestamp || Date.now() - lastTimestamp > ONE_HOUR) {
+  if (!session.timestamp || Date.now() - session.timestamp > ONE_HOUR) {
     console.warn("⏰ Session expired — logging out.");
     localStorage.clear();
     return <Navigate to="/login" replace />;
   }
 
-  // ----------------------------------------------
-  // AUTO-REFRESH TIMESTAMP
-  // ----------------------------------------------
+  // Refresh timestamp
   session.timestamp = Date.now();
   localStorage.setItem("session", JSON.stringify(session));
-  
-  // ----------------------------------------------
-  // 🌐 DOMAIN-LEVEL ACCESS RULES
-  // ----------------------------------------------
 
-  // admin.logbook.ph → ONLY admin / manager
+  // ----------------------------------------------
+  // DOMAIN RULES
+  // ----------------------------------------------
   if (hostname.startsWith("admin.")) {
     if (userRole !== "admin" && userRole !== "manager") {
-      console.warn("⛔ Cashier blocked from admin domain.");
       localStorage.clear();
       return <Navigate to="/login" replace />;
     }
   }
 
   // ----------------------------------------------
-  // 🚨 PATH-LEVEL ROLE RULES (PHASE 1)
+  // PATH RULES
   // ----------------------------------------------
 
-  // /admin routes → admin / manager only
+  // Admin routes
   if (location.pathname.startsWith("/admin")) {
     if (userRole !== "admin" && userRole !== "manager") {
-      console.warn("⛔ Unauthorized access to admin route.");
       return <Navigate to="/login" replace />;
     }
   }
 
-  // /cashier routes →
-  // ✅ cashiers always allowed
-  // ✅ admin / manager allowed ONLY if a store is selected
+  // Cashier routes
   if (location.pathname.startsWith("/cashier")) {
-    // Cashiers are always allowed
     if (userRole === "cashier") return <>{children}</>;
 
-    // Admin / Manager allowed ONLY with store context
-    if (
-      (userRole === "admin" || userRole === "manager") &&
-      session.activeStoreId
-    ) {
+    if ((userRole === "admin" || userRole === "manager") && session.activeStoreId) {
       return <>{children}</>;
     }
 
@@ -99,16 +102,10 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   }
 
   // ----------------------------------------------
-  // OPTIONAL EXPLICIT ROLE CHECK
+  // OPTIONAL ROLE CHECK
   // ----------------------------------------------
   if (roles && !roles.includes(userRole)) {
-    console.warn(`⛔ Role "${userRole}" not permitted. Required:`, roles);
-
-    if (userRole === "cashier") {
-      return <Navigate to="/cashier" replace />;
-    }
-
-    return <Navigate to="/admin" replace />;
+    return <Navigate to={userRole === "cashier" ? "/cashier" : "/admin"} replace />;
   }
 
   // ----------------------------------------------
