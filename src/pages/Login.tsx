@@ -165,7 +165,7 @@ const Login: React.FC = () => {
     const session = {
       userId: pendingAuth.user_id,
       name: pendingAuth.name,
-      role: pendingAuth.role,
+      role: pendingAuth.role, // keep role as admin/manager
       activeStoreId: store.id,
       activeStoreName: store.name,
       storeAccess:
@@ -179,6 +179,7 @@ const Login: React.FC = () => {
     localStorage.setItem("session", JSON.stringify(session));
     localStorage.setItem("token", "logged_in");
 
+    // ✅ ALWAYS go to cashier after store selection
     navigate("/cashier", { replace: true });
   };
 
