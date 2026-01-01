@@ -144,10 +144,12 @@ const Login: React.FC = () => {
       localStorage.setItem("session", JSON.stringify(session));
       localStorage.setItem("token", "logged_in");
 
-      navigate(
-        hostname.startsWith("admin.") ? "/admin" : "/cashier",
-        { replace: true }
-      );
+      if (hostname.startsWith("admin.")) {
+        navigate("/admin", { replace: true });
+      } else {
+        // app.logbook.ph → ALWAYS cashier mode (even for admins)
+        navigate("/cashier", { replace: true });
+      }
     } catch (err) {
       console.error("❌ Login error:", err);
       setError("Incorrect PIN or inactive account.");
