@@ -80,11 +80,13 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   // ✅ cashiers always allowed
   // ✅ admin / manager allowed ONLY if a store is selected
   if (location.pathname.startsWith("/cashier")) {
-    if (userRole === "admin" || userRole === "manager") {
-      if (!session.activeStoreId) {
-        console.warn("⛔ Admin/Manager missing activeStoreId for cashier route.");
-        return <Navigate to="/login" replace />;
-      }
+    // Cashiers are fine
+    if (userRole === "cashier") return <>{children}</>;
+
+    // Admin/Manager MUST have activeStoreId
+    if (!session.activeStoreId) {
+      console.warn("⏳ Waiting for store selection.");
+      return <Navigate to="/login" replace />;
     }
   }
 
