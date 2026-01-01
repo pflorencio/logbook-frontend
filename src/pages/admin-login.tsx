@@ -6,20 +6,22 @@ import toast, { Toaster } from "react-hot-toast";
 export default function AdminLogin() {
   const navigate = useNavigate();
 
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState<any[]>([]);
   const [selectedUserId, setSelectedUserId] = useState("");
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
 
   // ------------------------------------------------------
-  // Load only manager/admin users
+  // Load ONLY admin + manager users
   // ------------------------------------------------------
   useEffect(() => {
     async function loadUsers() {
       try {
         const res = await fetchUsers();
         const filtered = res.filter(
-          (u) => u.role === "manager" || u.role === "admin"
+          (u) =>
+            u.active === true &&
+            (u.role === "manager" || u.role === "admin")
         );
         setUsers(filtered || []);
       } catch (err) {
@@ -34,7 +36,7 @@ export default function AdminLogin() {
   // Handle login
   // ------------------------------------------------------
   async function handleLogin() {
-    if (!selectedUserId || !pin) {
+    if (!selectedUserId || pin.length !== 4) {
       toast.error("Please select a user and enter PIN.");
       return;
     }
@@ -44,30 +46,28 @@ export default function AdminLogin() {
     try {
       const data = await loginUser(selectedUserId, pin);
 
-      // ⭐ Normalize fields (Airtable sometimes returns undefined)
-      const store = data.store || null;
-      const storeAccess = data.store_access || [];
+      // ⛔ Absolute safety check
+      if (data.role === "cashier") {
+        toast.error("Access denied.");
+        return;
+      }
 
-      // ⭐ Save session with timestamp + token
       localStorage.setItem(
         "session",
         JSON.stringify({
           user_id: data.user_id,
           name: data.name,
           role: data.role,
-          store,
-          storeAccess,
-          timestamp: Date.now(),        // ⭐ REQUIRED FOR PROTECTEDROUTE
+          store: data.store || null,
+          storeAccess: data.store_access || [],
+          timestamp: Date.now(),
         })
       );
 
-      localStorage.setItem("token", "admin-auth"); // ⭐ REQUIRED
+      localStorage.setItem("token", "admin-auth");
 
       toast.success(`Welcome ${data.name}!`);
-
-      // ⭐ Redirect to admin dashboard
       navigate("/admin", { replace: true });
-
     } catch (err) {
       toast.error("Invalid PIN or user.");
       console.error("Login error:", err);
@@ -85,7 +85,6 @@ export default function AdminLogin() {
           Management Portal Login
         </h1>
 
-        {/* User selection */}
         <div>
           <label className="text-sm text-gray-600">Select User</label>
           <select
@@ -102,7 +101,6 @@ export default function AdminLogin() {
           </select>
         </div>
 
-        {/* PIN input */}
         <div>
           <label className="text-sm text-gray-600">PIN</label>
           <input
@@ -115,7 +113,6 @@ export default function AdminLogin() {
           />
         </div>
 
-        {/* Login button */}
         <button
           onClick={handleLogin}
           disabled={loading}

@@ -66,7 +66,6 @@ export default function App() {
         <Routes>
           {/* ---------- PUBLIC ROUTES ---------- */}
           <Route path="/login" element={<Login />} />
-          <Route path="/admin-login" element={<AdminLogin />} />
 
           {/* ---------- DEFAULT ROUTE ---------- */}
           <Route

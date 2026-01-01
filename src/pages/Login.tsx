@@ -22,15 +22,36 @@ const Login: React.FC = () => {
   const [error, setError] = useState("");
   const [isStandalone, setIsStandalone] = useState(false);
 
+  // --------------------------------------------------
+  // Clear previous session on load
+  // --------------------------------------------------
   useEffect(() => {
     localStorage.clear();
   }, []);
 
+  // --------------------------------------------------
+  // Load users (domain-aware filtering)
+  // --------------------------------------------------
   useEffect(() => {
     async function load() {
       try {
         const list = await fetchUsers();
-        setUsers(list.filter((u) => u.active));
+        const hostname = window.location.hostname;
+        const isAdminDomain = hostname.startsWith("admin.");
+
+        const filtered = list.filter((u) => {
+          if (!u.active) return false;
+
+          // admin.logbook.ph should NEVER show cashiers
+          if (isAdminDomain) {
+            return u.role === "admin" || u.role === "manager";
+          }
+
+          // app.logbook.ph shows everyone
+          return true;
+        });
+
+        setUsers(filtered);
       } catch (err) {
         console.error("❌ Error loading users:", err);
       }
@@ -38,7 +59,9 @@ const Login: React.FC = () => {
     load();
   }, []);
 
-  // Detect if app is already installed
+  // --------------------------------------------------
+  // Detect PWA standalone mode
+  // --------------------------------------------------
   useEffect(() => {
     const standalone =
       window.matchMedia("(display-mode: standalone)").matches ||
@@ -48,6 +71,9 @@ const Login: React.FC = () => {
     setIsStandalone(!!standalone);
   }, []);
 
+  // --------------------------------------------------
+  // Handle login
+  // --------------------------------------------------
   const handleLogin = async () => {
     setError("");
 
@@ -64,6 +90,14 @@ const Login: React.FC = () => {
 
     try {
       const authData = await loginUser(user.user_id, pin);
+
+      const hostname = window.location.hostname;
+
+      // 🚫 Block cashiers from admin domain
+      if (hostname.startsWith("admin.") && authData.role === "cashier") {
+        setError("Cashiers cannot access the admin portal.");
+        return;
+      }
 
       const session = {
         userId: authData.user_id,
@@ -143,8 +177,8 @@ const Login: React.FC = () => {
           Login
         </button>
 
-        {/* ✅ ALWAYS SHOW INSTALL BUTTON */}
-        {!isStandalone && (
+        {/* ✅ Install only on staff app */}
+        {!isStandalone && !window.location.hostname.startsWith("admin.") && (
           <button
             onClick={handleInstall}
             className="w-full mt-3 border border-blue-600 text-blue-600 hover:bg-blue-50 py-2 rounded-xl text-base font-medium"

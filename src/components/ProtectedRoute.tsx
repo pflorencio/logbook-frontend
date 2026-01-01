@@ -8,21 +8,16 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, roles }: ProtectedRouteProps) {
   const location = useLocation();
+  const hostname = window.location.hostname;
 
   // ----------------------------------------------
   // LOAD SESSION
   // ----------------------------------------------
   const raw = localStorage.getItem("session");
+  const token = localStorage.getItem("token");
 
-  if (!raw) {
-    console.warn("⛔ No session found. User not logged in.");
-
-    // If user tries to access admin pages → go to admin-login
-    if (location.pathname.startsWith("/admin")) {
-      return <Navigate to="/admin-login" replace />;
-    }
-
-    // Otherwise → cashier login
+  if (!raw || !token) {
+    console.warn("⛔ No valid session found. Redirecting to login.");
     return <Navigate to="/login" replace />;
   }
 
@@ -32,10 +27,7 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
     session = JSON.parse(raw);
   } catch (err) {
     console.error("⛔ Invalid session JSON:", err);
-    localStorage.removeItem("session");
-    if (location.pathname.startsWith("/admin")) {
-      return <Navigate to="/admin-login" replace />;
-    }
+    localStorage.clear();
     return <Navigate to="/login" replace />;
   }
 
@@ -49,11 +41,7 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
 
   if (!lastTimestamp || Date.now() - lastTimestamp > ONE_HOUR) {
     console.warn("⏰ Session expired — logging out.");
-    localStorage.removeItem("session");
-
-    if (location.pathname.startsWith("/admin")) {
-      return <Navigate to="/admin-login" replace />;
-    }
+    localStorage.clear();
     return <Navigate to="/login" replace />;
   }
 
@@ -64,28 +52,43 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   localStorage.setItem("session", JSON.stringify(session));
 
   // ----------------------------------------------
-  // 🚨 ROLE-BASED ACCESS RULES
+  // 🌐 DOMAIN-LEVEL ACCESS RULES
   // ----------------------------------------------
 
-  // Case 1 — Admin pages require manager/admin
-  if (location.pathname.startsWith("/admin")) {
+  // admin.logbook.ph → ONLY admin / manager
+  if (hostname.startsWith("admin.")) {
     if (userRole !== "admin" && userRole !== "manager") {
-      console.warn("⛔ Cashier trying to access admin area.");
+      console.warn("⛔ Cashier blocked from admin domain.");
+      localStorage.clear();
       return <Navigate to="/login" replace />;
     }
   }
 
-  // Case 2 — Cashier pages require cashier role
+  // ----------------------------------------------
+  // 🚨 PATH-LEVEL ROLE RULES
+  // ----------------------------------------------
+
+  // /admin routes → admin / manager only
+  if (location.pathname.startsWith("/admin")) {
+    if (userRole !== "admin" && userRole !== "manager") {
+      console.warn("⛔ Unauthorized access to admin route.");
+      return <Navigate to="/login" replace />;
+    }
+  }
+
+  // /cashier routes → cashier only
   if (location.pathname.startsWith("/cashier")) {
     if (userRole !== "cashier") {
-      console.warn("⛔ Manager/Admin trying to access cashier area.");
+      console.warn("⛔ Manager/Admin blocked from cashier route.");
       return <Navigate to="/admin" replace />;
     }
   }
 
-  // Additionally support explicit roles prop (optional)
+  // ----------------------------------------------
+  // OPTIONAL EXPLICIT ROLE CHECK
+  // ----------------------------------------------
   if (roles && !roles.includes(userRole)) {
-    console.warn(`⛔ Access denied for role "${userRole}". Required:`, roles);
+    console.warn(`⛔ Role "${userRole}" not permitted. Required:`, roles);
 
     if (userRole === "cashier") {
       return <Navigate to="/cashier" replace />;
@@ -95,7 +98,7 @@ export default function ProtectedRoute({ children, roles }: ProtectedRouteProps)
   }
 
   // ----------------------------------------------
-  // ACCESS GRANTED
+  // ✅ ACCESS GRANTED
   // ----------------------------------------------
   return <>{children}</>;
 }
