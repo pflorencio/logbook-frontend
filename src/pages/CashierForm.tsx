@@ -80,9 +80,11 @@ const CashierForm: React.FC = () => {
 
   // User info
   const userName: string = session.name || "Cashier";
-  const storeId: string | null = session.storeId || null; // legacy / fallback
-  const storeName: string | null = session.storeName || null; // legacy / fallback
   const submittedBy: string = userName;
+
+  // ✅ PHASE 1 — single source of truth
+  const storeId: string | null = session.activeStoreId || null;
+  const storeName: string | null = session.activeStoreName || null;
 
   // Navigation
   const navigate = useNavigate();
@@ -668,7 +670,7 @@ const CashierForm: React.FC = () => {
                 <h1 className="text-xl font-semibold">
                   Daily Closing Form —{" "}
                   <span className="text-blue-600">
-                    {activeStoreName || "Unknown Store"}
+                    {storeName || "Unknown Store"}
                   </span>
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
