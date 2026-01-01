@@ -665,9 +665,16 @@ const CashierForm: React.FC = () => {
           <header className="mb-6 space-y-3">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-xl font-semibold text-gray-900">
-                  Daily Closing Form — {storeName}
+                <h1 className="text-xl font-semibold">
+                  Daily Closing Form —{" "}
+                  <span className="text-blue-600">
+                    {activeStoreName || "Unknown Store"}
+                  </span>
                 </h1>
+                <p className="text-sm text-gray-500 mt-1">
+                  You are submitting a closing report for{" "}
+                  <strong>{activeStoreName}</strong>.
+                </p>
                 <p className="text-sm text-gray-500 mt-1">
                   Complete the end-of-day report.
                 </p>
