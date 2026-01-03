@@ -18,6 +18,7 @@ export default function VerifyClosing() {
   // Admin-entered deposit adjustments
   const [cardTips, setCardTips] = useState<number | "">("");
   const [returnedChange, setReturnedChange] = useState<number | "">("");
+  const [reimbursement, setReimbursement] = useState<number | "">("");
 
   // Derived state
   const isLocked = fields?.["Lock Status"] === "Locked";
@@ -59,6 +60,7 @@ export default function VerifyClosing() {
       // Prefill admin fields
       setCardTips(resolvedFields["Card Tips"] ?? "");
       setReturnedChange(resolvedFields["Returned Change"] ?? "");
+      setReimbursement(resolvedFields["Reimbursement"] ?? "");
 
       const bd = resolvedFields.Date;
       const storeId = resolvedFields.Store?.[0];
@@ -137,6 +139,8 @@ export default function VerifyClosing() {
         card_tips: cardTips === "" ? undefined : Number(cardTips),
         returned_change:
           returnedChange === "" ? undefined : Number(returnedChange),
+        reimbursement:
+          reimbursement === "" ? undefined : Number(reimbursement),
       });
 
       toast.success("Closing verified successfully.");
@@ -169,7 +173,6 @@ export default function VerifyClosing() {
           </button>
         </div>
 
-        {/* LOADING */}
         {loading && <p className="text-gray-500">Loading…</p>}
 
         {!loading && fields && (
@@ -188,11 +191,6 @@ export default function VerifyClosing() {
                   >
                     {peso(summary.variance)}
                   </p>
-                  {isLocked && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      Final (post-verification)
-                    </p>
-                  )}
                 </div>
 
                 <div className="p-4 bg-white shadow rounded-xl border">
@@ -207,11 +205,6 @@ export default function VerifyClosing() {
                   <p className="text-lg font-bold">
                     {peso(summary.cash_for_deposit)}
                   </p>
-                  {isLocked && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      Includes admin adjustments
-                    </p>
-                  )}
                 </div>
 
                 <div className="p-4 bg-white shadow rounded-xl border">
@@ -223,7 +216,7 @@ export default function VerifyClosing() {
               </div>
             )}
 
-            {/* EDITABLE FIELDS */}
+            {/* EDITABLE FIELDS — UNCHANGED */}
             <div className="bg-white shadow rounded-xl border p-6 space-y-4 mt-6">
               <h2 className="text-lg font-semibold mb-2">
                 Adjust Editable Fields
@@ -249,7 +242,6 @@ export default function VerifyClosing() {
                 </div>
               ))}
 
-              {/* Notes */}
               <div className="flex flex-col">
                 <label className="text-sm text-gray-600">Notes</label>
                 <textarea
@@ -298,6 +290,23 @@ export default function VerifyClosing() {
                     value={returnedChange}
                     onChange={(e) =>
                       setReturnedChange(
+                        e.target.value === "" ? "" : Number(e.target.value)
+                      )
+                    }
+                    className="px-3 py-2 rounded-lg border bg-white mt-1"
+                  />
+                </div>
+
+                <div className="flex flex-col">
+                  <label className="text-sm text-gray-600">
+                    Reimbursement
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={reimbursement}
+                    onChange={(e) =>
+                      setReimbursement(
                         e.target.value === "" ? "" : Number(e.target.value)
                       )
                     }

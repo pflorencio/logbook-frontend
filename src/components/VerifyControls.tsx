@@ -14,12 +14,15 @@ export default function VerifyControls({
     record.fields["Verification Notes"] || ""
   );
 
-  // ✅ NEW: Admin deposit adjustment fields
+  // Admin deposit adjustment fields
   const [cardTips, setCardTips] = useState<number | "">(
     record.fields["Card Tips"] ?? ""
   );
   const [returnedChange, setReturnedChange] = useState<number | "">(
     record.fields["Returned Change"] ?? ""
+  );
+  const [reimbursements, setReimbursements] = useState<number | "">(
+    record.fields["Reimbursements"] ?? ""
   );
 
   const [loading, setLoading] = useState(false);
@@ -43,11 +46,14 @@ export default function VerifyControls({
         verified_by: verifiedBy,
         notes,
 
-        card_tips: cardTips === "" ? null : Number(cardTips),
-        returned_change: returnedChange === "" ? null : Number(returnedChange),
+        card_tips: cardTips === "" ? null : Math.max(0, Number(cardTips)),
+        returned_change:
+          returnedChange === "" ? null : Math.max(0, Number(returnedChange)),
+        reimbursements:
+          reimbursements === "" ? null : Math.max(0, Number(reimbursements)),
       };
 
-      const res = await verifyClosing(payload);
+      await verifyClosing(payload);
 
       toast.success(
         status === "Verified"
@@ -63,6 +69,9 @@ export default function VerifyControls({
           "Verification Notes": notes,
           "Verified By": verifiedBy,
           "Verified At": new Date().toISOString(),
+          "Card Tips": cardTips,
+          "Returned Change": returnedChange,
+          "Reimbursements": reimbursements,
         },
       });
     } catch (err) {
@@ -84,7 +93,6 @@ export default function VerifyControls({
         placeholder="Add notes for cashier..."
       />
 
-      {/* ✅ NEW: Deposit Adjustments */}
       <div className="space-y-3 pt-2">
         <h4 className="font-medium text-gray-700">
           Deposit Adjustments (Admin)
@@ -95,6 +103,7 @@ export default function VerifyControls({
           <input
             type="number"
             step="0.01"
+            min={0}
             className="border rounded px-3 py-2"
             value={cardTips}
             onChange={(e) =>
@@ -108,10 +117,27 @@ export default function VerifyControls({
           <input
             type="number"
             step="0.01"
+            min={0}
             className="border rounded px-3 py-2"
             value={returnedChange}
             onChange={(e) =>
               setReturnedChange(
+                e.target.value === "" ? "" : Number(e.target.value)
+              )
+            }
+          />
+        </div>
+
+        <div className="flex flex-col">
+          <label className="text-sm text-gray-600">Reimbursements</label>
+          <input
+            type="number"
+            step="0.01"
+            min={0}
+            className="border rounded px-3 py-2"
+            value={reimbursements}
+            onChange={(e) =>
+              setReimbursements(
                 e.target.value === "" ? "" : Number(e.target.value)
               )
             }
