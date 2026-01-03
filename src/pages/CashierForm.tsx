@@ -783,46 +783,70 @@ const CashierForm: React.FC = () => {
               
               {/* BUDGET CONTEXT — Read-Only */}
               <section className="rounded-2xl bg-blue-50 border border-blue-100 p-4 md:p-5 mb-6">
-                <h3 className="text-sm font-semibold text-blue-900 text-center uppercase mb-3">
+                <h3 className="text-sm font-semibold text-blue-900 text-center uppercase mb-4">
                   Weekly Budget Context
                 </h3>
 
                 {weeklyBudgetLoading ? (
-                  <p className="text-center text-sm text-blue-700">Loading weekly budget…</p>
+                  <p className="text-center text-sm text-blue-700">
+                    Loading weekly budget…
+                  </p>
                 ) : !weeklyBudgetRecord ? (
                   <div className="text-center text-sm text-blue-800">
-                    <div className="font-medium">No weekly budget found for this week.</div>
+                    <div className="font-medium">
+                      No weekly budget found for this week.
+                    </div>
                     <div className="text-xs text-blue-700 mt-1">
                       Please ask Admin to set a weekly budget for this store/week.
                     </div>
                   </div>
                 ) : (
                   <>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div className="text-center">
-                        <div className="text-xs text-blue-700">Weekly Budget</div>
-                        <div className="font-semibold text-blue-900">{formatPeso(weeklyBudget)}</div>
-                      </div>
+                    {/* HEADERS */}
+                    <div className="grid grid-cols-4 gap-3 text-xs text-blue-700 mb-2">
+                      <div></div>
+                      <div className="text-center">Weekly</div>
+                      <div className="text-center">Remaining</div>
+                      <div className="text-center">Daily Guide</div>
+                    </div>
 
-                      <div className="text-center">
-                        <div className="text-xs text-blue-700">Remaining This Week</div>
-                        <div className="font-semibold text-blue-900">
-                          {formatPeso(remainingWeeklyBudget)}
-                        </div>
+                    {/* KITCHEN */}
+                    <div className="grid grid-cols-4 gap-3 text-sm items-center mb-3">
+                      <div className="font-medium text-blue-900">Kitchen</div>
+                      <div className="text-center font-semibold text-blue-900">
+                        {formatPeso(weeklyBudgetRecord.kitchen_budget)}
                       </div>
-
-                      <div className="text-center">
-                        <div className="text-xs text-blue-700">Daily Envelope (Guide)</div>
-                        <div className="font-semibold text-blue-900">{formatPeso(dailyEnvelope)}</div>
+                      <div className="text-center font-semibold text-blue-900">
+                        {formatPeso(weeklyBudgetRecord.kitchen_remaining)}
+                      </div>
+                      <div className="text-center font-semibold text-blue-900">
+                        {formatPeso(weeklyBudgetRecord.kitchen_daily_envelope)}
                       </div>
                     </div>
 
-                    <p className="mt-3 text-xs text-blue-700 text-center">
-                      Weekly budget is reduced based on planned daily spend. Daily envelope is a pacing guide, not free spend.
+                    {/* BAR */}
+                    <div className="grid grid-cols-4 gap-3 text-sm items-center">
+                      <div className="font-medium text-blue-900">Bar</div>
+                      <div className="text-center font-semibold text-blue-900">
+                        {formatPeso(weeklyBudgetRecord.bar_budget)}
+                      </div>
+                      <div className="text-center font-semibold text-blue-900">
+                        {formatPeso(weeklyBudgetRecord.bar_remaining)}
+                      </div>
+                      <div className="text-center font-semibold text-blue-900">
+                        {formatPeso(weeklyBudgetRecord.bar_daily_envelope)}
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-xs text-blue-700 text-center">
+                      Budgets decrease as spend is recorded. Daily envelope is a pacing guide,
+                      not additional spend.
                     </p>
 
                     {weeklyBudgetError && (
-                      <p className="mt-2 text-xs text-red-600 text-center">{weeklyBudgetError}</p>
+                      <p className="mt-2 text-xs text-red-600 text-center">
+                        {weeklyBudgetError}
+                      </p>
                     )}
                   </>
                 )}
